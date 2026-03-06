@@ -76,8 +76,13 @@ const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
 // Future routes (to be added in subsequent commits)
-// app.use('/api/restaurants', restaurantRoutes);
-// app.use('/api/cloud-kitchens', cloudKitchenRoutes);
+const restaurantRoutes = require('./routes/restaurantRoutes');
+const cloudKitchenRoutes = require('./routes/cloudKitchenRoutes');
+const menuRoutes = require('./routes/menuRoutes');
+app.use('/api/restaurants', restaurantRoutes);
+app.use('/api/cloud-kitchens', cloudKitchenRoutes);
+app.use('/api/menu', menuRoutes);
+
 // app.use('/api/grocery', groceryRoutes);
 // app.use('/api/orders', orderRoutes);
 // app.use('/api/deliveries', deliveryRoutes);
