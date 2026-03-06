@@ -1,0 +1,239 @@
+const DeliveryPartner = require('../models/DeliveryPartner');
+const Order = require('../models/Order');
+const AppError = require('../utils/AppError');
+const catchAsync = require('../utils/catchAsync');
+const ApiResponse = require('../utils/apiResponse');
+
+/**
+ * @desc    Register as delivery partner
+ * @route   POST /api/deliveries/register
+ * @access  Private (delivery role)
+ */
+const registerPartner = catchAsync(async (req, res, next) => {
+    const existing = await DeliveryPartner.findOne({ user: req.user._id });
+    if (existing) return next(new AppError('You are already registered as a delivery partner', 400));
+
+    const partner = await DeliveryPartner.create({ ...req.body, user: req.user._id });
+    ApiResponse.created(res, { partner }, 'Delivery partner registered successfully');
+});
+
+/**
+ * @desc    Get my delivery partner profile
+ * @route   GET /api/deliveries/profile
+ * @access  Private (delivery role)
+ */
+const getMyProfile = catchAsync(async (req, res, next) => {
+    const partner = await DeliveryPartner.findOne({ user: req.user._id }).populate('currentOrder');
+    if (!partner) return next(new AppError('Delivery partner profile not found', 404));
+    ApiResponse.success(res, { partner }, 'Profile retrieved');
+});
+
+/**
+ * @desc    Update delivery partner profile
+ * @route   PUT /api/deliveries/profile
+ * @access  Private (delivery role)
+ */
+const updateProfile = catchAsync(async (req, res, next) => {
+    const allowedFields = ['vehicleType', 'vehicleNumber', 'licenseNumber', 'bankDetails', 'isAvailable'];
+    const updates = {};
+    allowedFields.forEach((f) => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+
+    const partner = await DeliveryPartner.findOneAndUpdate(
+        { user: req.user._id }, updates, { new: true, runValidators: true }
+    );
+    if (!partner) return next(new AppError('Profile not found', 404));
+    ApiResponse.success(res, { partner }, 'Profile updated');
+});
+
+/**
+ * @desc    Update current location
+ * @route   PATCH /api/deliveries/location
+ * @access  Private (delivery role)
+ */
+const updateLocation = catchAsync(async (req, res, next) => {
+    const { coordinates } = req.body; // [lng, lat]
+    if (!coordinates || coordinates.length !== 2) {
+        return next(new AppError('Please provide valid coordinates [longitude, latitude]', 400));
+    }
+
+    const partner = await DeliveryPartner.findOneAndUpdate(
+        { user: req.user._id },
+        { currentLocation: { type: 'Point', coordinates } },
+        { new: true }
+    );
+    if (!partner) return next(new AppError('Profile not found', 404));
+    ApiResponse.success(res, { location: partner.currentLocation }, 'Location updated');
+});
+
+/**
+ * @desc    Toggle availability
+ * @route   PATCH /api/deliveries/toggle-availability
+ * @access  Private (delivery role)
+ */
+const toggleAvailability = catchAsync(async (req, res, next) => {
+    const partner = await DeliveryPartner.findOne({ user: req.user._id });
+    if (!partner) return next(new AppError('Profile not found', 404));
+
+    partner.isAvailable = !partner.isAvailable;
+    await partner.save();
+    ApiResponse.success(res, { partner }, `You are now ${partner.isAvailable ? 'available' : 'offline'}`);
+});
+
+/**
+ * @desc    Get available deliveries (orders ready for pickup)
+ * @route   GET /api/deliveries/available
+ * @access  Private (delivery role)
+ */
+const getAvailableDeliveries = catchAsync(async (req, res, next) => {
+    const orders = await Order.find({ status: 'ready', deliveryPartner: null })
+        .populate('restaurant', 'name address phone')
+        .populate('cloudKitchen', 'name address phone')
+        .populate('groceryShop', 'name address phone')
+        .populate('user', 'name phone')
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean();
+
+    ApiResponse.success(res, { orders }, 'Available deliveries retrieved');
+});
+
+/**
+ * @desc    Accept a delivery
+ * @route   PATCH /api/deliveries/accept/:orderId
+ * @access  Private (delivery role)
+ */
+const acceptDelivery = catchAsync(async (req, res, next) => {
+    const partner = await DeliveryPartner.findOne({ user: req.user._id });
+    if (!partner) return next(new AppError('Profile not found', 404));
+    if (partner.isOnDelivery) return next(new AppError('You are already on a delivery', 400));
+
+    const order = await Order.findById(req.params.orderId);
+    if (!order) return next(new AppError('Order not found', 404));
+    if (order.status !== 'ready') return next(new AppError('Order is not ready for delivery', 400));
+    if (order.deliveryPartner) return next(new AppError('This delivery is already assigned', 400));
+
+    order.deliveryPartner = req.user._id;
+    order.status = 'outForDelivery';
+    await order.save();
+
+    partner.isOnDelivery = true;
+    partner.isAvailable = false;
+    partner.currentOrder = order._id;
+    await partner.save();
+
+    ApiResponse.success(res, { order }, 'Delivery accepted');
+});
+
+/**
+ * @desc    Complete a delivery
+ * @route   PATCH /api/deliveries/complete/:orderId
+ * @access  Private (delivery role)
+ */
+const completeDelivery = catchAsync(async (req, res, next) => {
+    const order = await Order.findById(req.params.orderId);
+    if (!order) return next(new AppError('Order not found', 404));
+    if (order.deliveryPartner.toString() !== req.user._id.toString()) {
+        return next(new AppError('Not your delivery', 403));
+    }
+    if (order.status !== 'outForDelivery') return next(new AppError('Order is not out for delivery', 400));
+
+    order.status = 'delivered';
+    order.deliveredAt = new Date();
+    order.paymentStatus = 'completed';
+    await order.save();
+
+    const earningsPerDelivery = 50; // Base earnings per delivery
+    const partner = await DeliveryPartner.findOneAndUpdate(
+        { user: req.user._id },
+        {
+            isOnDelivery: false,
+            isAvailable: true,
+            currentOrder: null,
+            $inc: { totalDeliveries: 1, totalEarnings: earningsPerDelivery },
+        },
+        { new: true }
+    );
+
+    ApiResponse.success(res, { order, partner }, 'Delivery completed');
+});
+
+/**
+ * @desc    Get delivery history
+ * @route   GET /api/deliveries/history
+ * @access  Private (delivery role)
+ */
+const getDeliveryHistory = catchAsync(async (req, res, next) => {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [orders, total] = await Promise.all([
+        Order.find({ deliveryPartner: req.user._id, status: 'delivered' })
+            .populate('restaurant', 'name')
+            .populate('cloudKitchen', 'name')
+            .populate('groceryShop', 'name')
+            .populate('user', 'name')
+            .sort({ deliveredAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .lean(),
+        Order.countDocuments({ deliveryPartner: req.user._id, status: 'delivered' }),
+    ]);
+
+    ApiResponse.paginated(res, { orders }, { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) }, 'Delivery history retrieved');
+});
+
+/**
+ * @desc    Get earnings summary
+ * @route   GET /api/deliveries/earnings
+ * @access  Private (delivery role)
+ */
+const getEarnings = catchAsync(async (req, res, next) => {
+    const partner = await DeliveryPartner.findOne({ user: req.user._id });
+    if (!partner) return next(new AppError('Profile not found', 404));
+
+    // Get today's deliveries & earnings
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayOrders = await Order.countDocuments({
+        deliveryPartner: req.user._id,
+        status: 'delivered',
+        deliveredAt: { $gte: todayStart },
+    });
+
+    ApiResponse.success(res, {
+        totalDeliveries: partner.totalDeliveries,
+        totalEarnings: partner.totalEarnings,
+        todayDeliveries: todayOrders,
+        todayEarnings: todayOrders * 50,
+        rating: partner.rating,
+        isAvailable: partner.isAvailable,
+    }, 'Earnings retrieved');
+});
+
+/**
+ * @desc    Get all delivery partners (admin)
+ * @route   GET /api/deliveries/admin/all
+ * @access  Private (admin)
+ */
+const getAllPartners = catchAsync(async (req, res, next) => {
+    const partners = await DeliveryPartner.find()
+        .populate('user', 'name email phone')
+        .populate('currentOrder')
+        .lean();
+
+    ApiResponse.success(res, { partners }, 'All partners retrieved');
+});
+
+module.exports = {
+    registerPartner,
+    getMyProfile,
+    updateProfile,
+    updateLocation,
+    toggleAvailability,
+    getAvailableDeliveries,
+    acceptDelivery,
+    completeDelivery,
+    getDeliveryHistory,
+    getEarnings,
+    getAllPartners,
+};
