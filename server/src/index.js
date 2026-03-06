@@ -83,13 +83,16 @@ app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/cloud-kitchens', cloudKitchenRoutes);
 app.use('/api/menu', menuRoutes);
 
-// app.use('/api/grocery', groceryRoutes);
+const groceryRoutes = require('./routes/groceryRoutes');
+const donationRoutes = require('./routes/donationRoutes');
+app.use('/api/grocery', groceryRoutes);
+app.use('/api/donations', donationRoutes);
+
 // app.use('/api/orders', orderRoutes);
 // app.use('/api/deliveries', deliveryRoutes);
 // app.use('/api/bookings', bookingRoutes);
 // app.use('/api/subscriptions', subscriptionRoutes);
 // app.use('/api/payments', paymentRoutes);
-// app.use('/api/donations', donationRoutes);
 // app.use('/api/reviews', reviewRoutes);
 // app.use('/api/admin', adminRoutes);
 
