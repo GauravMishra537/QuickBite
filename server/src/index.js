@@ -70,9 +70,12 @@ app.get('/api/health', (req, res) => {
 });
 
 // ---------------------
-// API Routes (to be added in subsequent commits)
+// API Routes
 // ---------------------
-// app.use('/api/auth', authRoutes);
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);
+
+// Future routes (to be added in subsequent commits)
 // app.use('/api/restaurants', restaurantRoutes);
 // app.use('/api/cloud-kitchens', cloudKitchenRoutes);
 // app.use('/api/grocery', groceryRoutes);
