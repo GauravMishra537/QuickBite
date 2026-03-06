@@ -93,9 +93,13 @@ const deliveryRoutes = require('./routes/deliveryRoutes');
 app.use('/api/orders', orderRoutes);
 app.use('/api/deliveries', deliveryRoutes);
 
-// app.use('/api/bookings', bookingRoutes);
-// app.use('/api/subscriptions', subscriptionRoutes);
-// app.use('/api/payments', paymentRoutes);
+const bookingRoutes = require('./routes/bookingRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/payments', paymentRoutes);
+
 // app.use('/api/reviews', reviewRoutes);
 // app.use('/api/admin', adminRoutes);
 
