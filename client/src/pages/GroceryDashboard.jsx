@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react';
-import { FiShoppingBag, FiDollarSign, FiPackage, FiClock } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiAlertTriangle } from 'react-icons/fi';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import StatCard from '../components/dashboard/StatCard';
+import OrderTable from '../components/dashboard/OrderTable';
+import ProductForm from '../components/dashboard/ProductForm';
 import './Dashboard.css';
+
+const TABS = [
+  { key: 'overview', label: '📊 Overview' },
+  { key: 'orders', label: '📋 Orders' },
+  { key: 'products', label: '📦 Products' },
+  { key: 'inventory', label: '📊 Inventory' },
+  { key: 'analytics', label: '📈 Analytics' },
+];
 
 const GroceryDashboard = () => {
   const { user } = useAuth();
@@ -11,34 +22,62 @@ const GroceryDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('orders');
+  const [tab, setTab] = useState('overview');
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [shopRes, ordersRes] = await Promise.all([
-          api.get('/grocery/my/shop'),
-          api.get('/orders/business'),
-        ]);
-        const s = shopRes.data?.shop || shopRes.data?.groceryShop || shopRes.data;
-        setShop(s);
-        setOrders(ordersRes.data?.orders || []);
-        if (s?._id) {
-          const prodRes = await api.get(`/grocery/${s._id}/products`);
-          setProducts(prodRes.data?.products || []);
-        }
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
-    };
-    fetchData();
-  }, []);
+  useEffect(() => { fetchAll(); }, []);
+
+  const fetchAll = async () => {
+    try {
+      const [shopRes, ordersRes] = await Promise.all([
+        api.get('/grocery/my/shop'),
+        api.get('/orders/business'),
+      ]);
+      const s = shopRes.data?.shop || shopRes.data?.groceryShop || shopRes.data;
+      setShop(s);
+      setOrders(ordersRes.data?.orders || []);
+      if (s?._id) {
+        const prodRes = await api.get(`/grocery/${s._id}/products`);
+        setProducts(prodRes.data?.products || []);
+      }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
 
   const handleOrderStatus = async (orderId, status) => {
     try {
       await api.patch(`/orders/${orderId}/status`, { status });
       setOrders((prev) => prev.map((o) => o._id === orderId ? { ...o, status } : o));
       toast.success(`Order ${status}`);
-    } catch (err) { toast.error('Status update failed'); }
+    } catch { toast.error('Status update failed'); }
+  };
+
+  const handleAddProduct = async (data) => {
+    try {
+      const res = await api.post(`/grocery/${shop._id}/products`, data);
+      setProducts((prev) => [...prev, res.data?.product || res.product || data]);
+      setShowProductForm(false);
+      toast.success('Product added! 📦');
+    } catch (err) { toast.error(err.message || 'Failed'); }
+  };
+
+  const handleEditProduct = async (data) => {
+    try {
+      await api.put(`/grocery/${shop._id}/products/${editProduct._id}`, data);
+      setProducts((prev) => prev.map((p) => p._id === editProduct._id ? { ...p, ...data } : p));
+      setEditProduct(null);
+      toast.success('Product updated');
+    } catch { toast.error('Update failed'); }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm('Delete this product?')) return;
+    try {
+      await api.delete(`/grocery/${shop._id}/products/${productId}`);
+      setProducts((prev) => prev.filter((p) => p._id !== productId));
+      toast.success('Product deleted');
+    } catch { toast.error('Delete failed'); }
   };
 
   if (loading) return (
@@ -48,6 +87,13 @@ const GroceryDashboard = () => {
   );
 
   const totalRevenue = orders.filter((o) => o.status === 'delivered').reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const lowStockProducts = products.filter((p) => (p.stock || 0) < 10);
+  const outOfStockProducts = products.filter((p) => (p.stock || 0) === 0);
+  const statusBreakdown = {};
+  orders.forEach((o) => { statusBreakdown[o.status] = (statusBreakdown[o.status] || 0) + 1; });
+  const categoryStats = {};
+  products.forEach((p) => { categoryStats[p.category] = (categoryStats[p.category] || 0) + 1; });
 
   return (
     <div className="container dashboard-page">
@@ -58,69 +104,154 @@ const GroceryDashboard = () => {
         </div>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-icon orange"><FiShoppingBag /></div><div><div className="stat-value">{orders.length}</div><div className="stat-label">Total Orders</div></div></div>
-        <div className="stat-card"><div className="stat-icon blue"><FiClock /></div><div><div className="stat-value">{orders.filter((o) => o.status === 'pending').length}</div><div className="stat-label">Pending</div></div></div>
-        <div className="stat-card"><div className="stat-icon purple"><FiPackage /></div><div><div className="stat-value">{products.length}</div><div className="stat-label">Products</div></div></div>
-        <div className="stat-card"><div className="stat-icon green"><FiDollarSign /></div><div><div className="stat-value">₹{totalRevenue.toLocaleString()}</div><div className="stat-label">Revenue</div></div></div>
-      </div>
-
       <div className="dash-tabs">
-        <button className={`dash-tab ${tab === 'orders' ? 'active' : ''}`} onClick={() => setTab('orders')}>Orders ({orders.length})</button>
-        <button className={`dash-tab ${tab === 'products' ? 'active' : ''}`} onClick={() => setTab('products')}>Products ({products.length})</button>
+        {TABS.map((t) => <button key={t.key} className={`dash-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
       </div>
 
-      {tab === 'orders' && (
-        orders.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '3rem' }}>📋</div><p>No orders yet</p>
+      {/* OVERVIEW */}
+      {tab === 'overview' && (
+        <>
+          <div className="stats-grid">
+            <StatCard icon="orders" color="orange" value={orders.length} label="Total Orders" />
+            <StatCard icon="pending" color="blue" value={pendingOrders} label="Pending" />
+            <StatCard icon="products" color="purple" value={products.length} label="Products" />
+            <StatCard icon="revenue" color="green" value={`₹${totalRevenue.toLocaleString()}`} label="Revenue" />
           </div>
-        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>📋 Recent Orders</h3>
+              {orders.slice(0, 5).map((o) => (
+                <div key={o._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', fontWeight: 600 }}>#{o._id?.slice(-6).toUpperCase()}</span>
+                  <span>₹{o.totalAmount}</span>
+                  <span className={`status-badge ${o.status}`}>{o.status}</span>
+                </div>
+              ))}
+              {orders.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No orders yet</p>}
+            </div>
+            <div style={{ background: 'var(--bg-card)', border: `1px solid ${lowStockProducts.length > 0 ? 'var(--warning)' : 'var(--border-color)'}`, borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)', color: lowStockProducts.length > 0 ? 'var(--warning)' : 'inherit' }}>
+                <FiAlertTriangle style={{ marginRight: 4 }} /> Low Stock Alert ({lowStockProducts.length})
+              </h3>
+              {lowStockProducts.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)' }}>All products well stocked ✅</p>
+              ) : (
+                lowStockProducts.slice(0, 5).map((p) => (
+                  <div key={p._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-light)' }}>
+                    <span>{p.name}</span>
+                    <span style={{ fontWeight: 700, color: (p.stock || 0) === 0 ? 'var(--danger)' : 'var(--warning)' }}>{p.stock || 0} left</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ORDERS */}
+      {tab === 'orders' && (
+        <OrderTable orders={orders} onStatusChange={handleOrderStatus}
+          statusActions={{ confirmed: [{ label: 'Pack', status: 'preparing', variant: 'btn-secondary' }] }} />
+      )}
+
+      {/* PRODUCTS */}
+      {tab === 'products' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>Products ({products.length})</h3>
+            <button className="btn btn-primary btn-sm" onClick={() => { setEditProduct(null); setShowProductForm(!showProductForm); }}><FiPlus /> Add Product</button>
+          </div>
+          {showProductForm && <ProductForm onSubmit={handleAddProduct} onCancel={() => setShowProductForm(false)} />}
+          {editProduct && <ProductForm product={editProduct} onSubmit={handleEditProduct} onCancel={() => setEditProduct(null)} />}
+          {products.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}><div style={{ fontSize: '3rem' }}>📦</div><p>No products yet</p></div>
+          ) : (
+            products.map((prod) => (
+              <div key={prod._id} className="menu-manage-card">
+                {prod.image && <img src={prod.image} alt={prod.name} className="menu-manage-img" />}
+                <div className="menu-manage-info">
+                  <div className="menu-manage-name">{prod.name}</div>
+                  <div className="menu-manage-meta">
+                    <span>₹{prod.price}/{prod.unit || 'kg'}</span>
+                    <span>{prod.category}</span>
+                    <span>{prod.stock || 0} in stock</span>
+                    {prod.discount > 0 && <span style={{ color: 'var(--success)' }}>{prod.discount}% off</span>}
+                  </div>
+                </div>
+                <div className="menu-manage-actions">
+                  <span className={`status-badge ${(prod.stock || 0) > 0 ? 'ready' : 'cancelled'}`}>{(prod.stock || 0) > 0 ? 'In Stock' : 'Out'}</span>
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setShowProductForm(false); setEditProduct(prod); }}><FiEdit2 /></button>
+                  <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteProduct(prod._id)}><FiTrash2 /></button>
+                </div>
+              </div>
+            ))
+          )}
+        </>
+      )}
+
+      {/* INVENTORY */}
+      {tab === 'inventory' && (
+        <>
+          <div className="stats-grid" style={{ marginBottom: 'var(--space-xl)' }}>
+            <StatCard icon="products" color="blue" value={products.length} label="Total Products" />
+            <StatCard icon="completed" color="green" value={products.filter((p) => (p.stock || 0) > 10).length} label="Well Stocked" />
+            <StatCard icon="pending" color="orange" value={lowStockProducts.length} label="Low Stock" />
+            <StatCard icon="donations" color="purple" value={outOfStockProducts.length} label="Out of Stock" />
+          </div>
           <table className="orders-table">
-            <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th></tr></thead>
             <tbody>
-              {orders.map((order) => (
-                <tr key={order._id}>
-                  <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.8125rem' }}>#{order._id?.slice(-6).toUpperCase()}</td>
-                  <td>{order.customer?.name || 'Customer'}</td>
-                  <td>{order.items?.length || 0} items</td>
-                  <td style={{ fontWeight: 600 }}>₹{order.totalAmount || 0}</td>
-                  <td><span className={`status-badge ${order.status}`}>{order.status}</span></td>
+              {products.map((p) => (
+                <tr key={p._id}>
+                  <td style={{ fontWeight: 600 }}>{p.name}</td>
+                  <td>{p.category}</td>
+                  <td>₹{p.price}/{p.unit || 'kg'}</td>
+                  <td style={{ fontWeight: 600, color: (p.stock || 0) === 0 ? 'var(--danger)' : (p.stock || 0) < 10 ? 'var(--warning)' : 'var(--success)' }}>{p.stock || 0}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {order.status === 'pending' && <button className="btn btn-primary btn-sm" onClick={() => handleOrderStatus(order._id, 'confirmed')}>Accept</button>}
-                      {order.status === 'confirmed' && <button className="btn btn-secondary btn-sm" onClick={() => handleOrderStatus(order._id, 'preparing')}>Pack</button>}
-                      {order.status === 'preparing' && <button className="btn btn-primary btn-sm" onClick={() => handleOrderStatus(order._id, 'ready')}>Ready</button>}
-                    </div>
+                    <span className={`status-badge ${(p.stock || 0) === 0 ? 'cancelled' : (p.stock || 0) < 10 ? 'pending' : 'ready'}`}>
+                      {(p.stock || 0) === 0 ? 'Out of Stock' : (p.stock || 0) < 10 ? 'Low Stock' : 'In Stock'}
+                    </span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )
+          {products.length === 0 && <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}><p>No products to track</p></div>}
+        </>
       )}
 
-      {tab === 'products' && (
-        products.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '3rem' }}>📦</div><p>No products yet</p>
+      {/* ANALYTICS */}
+      {tab === 'analytics' && (
+        <>
+          <div className="stats-grid" style={{ marginBottom: 'var(--space-xl)' }}>
+            <StatCard icon="orders" color="orange" value={orders.length} label="Total Orders" />
+            <StatCard icon="revenue" color="green" value={`₹${totalRevenue.toLocaleString()}`} label="Revenue" />
+            <StatCard icon="products" color="blue" value={products.length} label="Products" />
+            <StatCard icon="completed" color="purple" value={orders.filter((o) => o.status === 'delivered').length} label="Delivered" />
           </div>
-        ) : (
-          products.map((prod) => (
-            <div key={prod._id} className="menu-manage-card">
-              {prod.image && <img src={prod.image} alt={prod.name} className="menu-manage-img" />}
-              <div className="menu-manage-info">
-                <div className="menu-manage-name">{prod.name}</div>
-                <div className="menu-manage-meta">
-                  <span>₹{prod.price}</span>
-                  <span>{prod.category}</span>
-                  <span>{prod.stock || 0} in stock</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>📊 Order Status</h3>
+              {Object.entries(statusBreakdown).map(([status, count]) => (
+                <div key={status} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                  <span className={`status-badge ${status}`}>{status}</span>
+                  <span style={{ fontWeight: 700 }}>{count}</span>
+                  <div style={{ width: 120, height: 8, background: 'var(--border-color)', borderRadius: 4 }}><div style={{ width: `${(count / orders.length) * 100}%`, height: '100%', background: 'var(--primary)', borderRadius: 4 }} /></div>
                 </div>
-              </div>
-              <span className={`status-badge ${prod.stock > 0 ? 'ready' : 'cancelled'}`}>{prod.stock > 0 ? 'In Stock' : 'Out of Stock'}</span>
+              ))}
             </div>
-          ))
-        )
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>📦 Products by Category</h3>
+              {Object.entries(categoryStats).map(([cat, count]) => (
+                <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                  <span>{cat}</span>
+                  <span style={{ fontWeight: 700 }}>{count}</span>
+                  <div style={{ width: 120, height: 8, background: 'var(--border-color)', borderRadius: 4 }}><div style={{ width: `${(count / products.length) * 100}%`, height: '100%', background: '#9b59b6', borderRadius: 4 }} /></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

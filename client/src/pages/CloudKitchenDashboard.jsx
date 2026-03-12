@@ -1,9 +1,19 @@
 import { useEffect, useState } from 'react';
-import { FiShoppingBag, FiDollarSign, FiClock, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
+import { FiToggleLeft, FiToggleRight, FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import StatCard from '../components/dashboard/StatCard';
+import OrderTable from '../components/dashboard/OrderTable';
+import MenuForm from '../components/dashboard/MenuForm';
 import './Dashboard.css';
+
+const TABS = [
+  { key: 'overview', label: '📊 Overview' },
+  { key: 'orders', label: '📋 Orders' },
+  { key: 'menu', label: '🍽️ Menu' },
+  { key: 'analytics', label: '📈 Analytics' },
+];
 
 const CloudKitchenDashboard = () => {
   const { user } = useAuth();
@@ -11,35 +21,35 @@ const CloudKitchenDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('orders');
+  const [tab, setTab] = useState('overview');
+  const [showMenuForm, setShowMenuForm] = useState(false);
+  const [editItem, setEditItem] = useState(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [kitRes, ordersRes] = await Promise.all([
-          api.get('/cloud-kitchens/my/kitchen'),
-          api.get('/orders/business'),
-        ]);
-        const kit = kitRes.data?.cloudKitchen || kitRes.data;
-        setKitchen(kit);
-        setOrders(ordersRes.data?.orders || []);
-        if (kit?._id) {
-          const menuRes = await api.get(`/menu/kitchen/${kit._id}`);
-          setMenuItems(menuRes.data?.menuItems || menuRes.data?.items || []);
-        }
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
-    };
-    fetchData();
-  }, []);
+  useEffect(() => { fetchAll(); }, []);
+
+  const fetchAll = async () => {
+    try {
+      const [kitRes, ordersRes] = await Promise.all([
+        api.get('/cloud-kitchens/my/kitchen'),
+        api.get('/orders/business'),
+      ]);
+      const kit = kitRes.data?.cloudKitchen || kitRes.data;
+      setKitchen(kit);
+      setOrders(ordersRes.data?.orders || []);
+      if (kit?._id) {
+        const menuRes = await api.get(`/menu/kitchen/${kit._id}`);
+        setMenuItems(menuRes.data?.items || []);
+      }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
 
   const handleToggleStatus = async () => {
-    if (!kitchen) return;
     try {
-      const res = await api.patch(`/cloud-kitchens/${kitchen._id}/toggle-status`);
-      setKitchen(res.data?.cloudKitchen || { ...kitchen, isOpen: !kitchen.isOpen });
+      await api.patch(`/cloud-kitchens/${kitchen._id}/toggle-status`);
+      setKitchen((k) => ({ ...k, isOpen: !k.isOpen }));
       toast.success(kitchen.isOpen ? 'Kitchen closed' : 'Kitchen opened');
-    } catch (err) { toast.error('Toggle failed'); }
+    } catch { toast.error('Toggle failed'); }
   };
 
   const handleOrderStatus = async (orderId, status) => {
@@ -47,15 +57,41 @@ const CloudKitchenDashboard = () => {
       await api.patch(`/orders/${orderId}/status`, { status });
       setOrders((prev) => prev.map((o) => o._id === orderId ? { ...o, status } : o));
       toast.success(`Order ${status}`);
-    } catch (err) { toast.error('Status update failed'); }
+    } catch { toast.error('Status update failed'); }
   };
 
   const handleToggleAvailability = async (itemId) => {
     try {
       await api.patch(`/menu/${itemId}/toggle-availability`);
       setMenuItems((prev) => prev.map((m) => m._id === itemId ? { ...m, isAvailable: !m.isAvailable } : m));
-      toast.success('Availability updated');
-    } catch (err) { toast.error('Toggle failed'); }
+    } catch { toast.error('Toggle failed'); }
+  };
+
+  const handleAddMenu = async (data) => {
+    try {
+      const res = await api.post('/menu', data);
+      setMenuItems((prev) => [...prev, res.data?.item || res.item]);
+      setShowMenuForm(false);
+      toast.success('Item added! 🎉');
+    } catch (err) { toast.error(err.message || 'Failed'); }
+  };
+
+  const handleEditMenu = async (data) => {
+    try {
+      await api.put(`/menu/${editItem._id}`, data);
+      setMenuItems((prev) => prev.map((m) => m._id === editItem._id ? { ...m, ...data } : m));
+      setEditItem(null);
+      toast.success('Item updated');
+    } catch { toast.error('Update failed'); }
+  };
+
+  const handleDeleteMenu = async (itemId) => {
+    if (!window.confirm('Delete this item?')) return;
+    try {
+      await api.delete(`/menu/${itemId}`);
+      setMenuItems((prev) => prev.filter((m) => m._id !== itemId));
+      toast.success('Item deleted');
+    } catch { toast.error('Delete failed'); }
   };
 
   if (loading) return (
@@ -65,6 +101,11 @@ const CloudKitchenDashboard = () => {
   );
 
   const totalRevenue = orders.filter((o) => o.status === 'delivered').reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const statusBreakdown = {};
+  orders.forEach((o) => { statusBreakdown[o.status] = (statusBreakdown[o.status] || 0) + 1; });
+  const categoryStats = {};
+  menuItems.forEach((i) => { categoryStats[i.category] = (categoryStats[i.category] || 0) + 1; });
 
   return (
     <div className="container dashboard-page">
@@ -80,68 +121,95 @@ const CloudKitchenDashboard = () => {
         </div>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-icon orange"><FiShoppingBag /></div><div><div className="stat-value">{orders.length}</div><div className="stat-label">Total Orders</div></div></div>
-        <div className="stat-card"><div className="stat-icon blue"><FiClock /></div><div><div className="stat-value">{orders.filter((o) => o.status === 'pending').length}</div><div className="stat-label">Pending</div></div></div>
-        <div className="stat-card"><div className="stat-icon purple"><FiClock /></div><div><div className="stat-value">{orders.filter((o) => o.status === 'preparing').length}</div><div className="stat-label">Preparing</div></div></div>
-        <div className="stat-card"><div className="stat-icon green"><FiDollarSign /></div><div><div className="stat-value">₹{totalRevenue.toLocaleString()}</div><div className="stat-label">Revenue</div></div></div>
-      </div>
-
       <div className="dash-tabs">
-        <button className={`dash-tab ${tab === 'orders' ? 'active' : ''}`} onClick={() => setTab('orders')}>Orders ({orders.length})</button>
-        <button className={`dash-tab ${tab === 'menu' ? 'active' : ''}`} onClick={() => setTab('menu')}>Menu ({menuItems.length})</button>
+        {TABS.map((t) => <button key={t.key} className={`dash-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
       </div>
 
-      {tab === 'orders' && (
-        orders.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '3rem' }}>📋</div><p>No orders yet</p>
+      {/* OVERVIEW */}
+      {tab === 'overview' && (
+        <>
+          <div className="stats-grid">
+            <StatCard icon="orders" color="orange" value={orders.length} label="Total Orders" />
+            <StatCard icon="pending" color="blue" value={pendingOrders} label="Pending" />
+            <StatCard icon="products" color="purple" value={menuItems.length} label="Menu Items" />
+            <StatCard icon="revenue" color="green" value={`₹${totalRevenue.toLocaleString()}`} label="Revenue" />
           </div>
-        ) : (
-          <table className="orders-table">
-            <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>
-              {orders.map((order) => (
-                <tr key={order._id}>
-                  <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.8125rem' }}>#{order._id?.slice(-6).toUpperCase()}</td>
-                  <td>{order.customer?.name || 'Customer'}</td>
-                  <td>{order.items?.length || 0} items</td>
-                  <td style={{ fontWeight: 600 }}>₹{order.totalAmount || 0}</td>
-                  <td><span className={`status-badge ${order.status}`}>{order.status}</span></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {order.status === 'pending' && <button className="btn btn-primary btn-sm" onClick={() => handleOrderStatus(order._id, 'confirmed')}>Accept</button>}
-                      {order.status === 'confirmed' && <button className="btn btn-secondary btn-sm" onClick={() => handleOrderStatus(order._id, 'preparing')}>Prepare</button>}
-                      {order.status === 'preparing' && <button className="btn btn-primary btn-sm" onClick={() => handleOrderStatus(order._id, 'ready')}>Ready</button>}
-                      {(order.status === 'pending' || order.status === 'confirmed') && (
-                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleOrderStatus(order._id, 'cancelled')}>Reject</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>📋 Recent Orders</h3>
+            {orders.slice(0, 5).map((o) => (
+              <div key={o._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', fontWeight: 600 }}>#{o._id?.slice(-6).toUpperCase()}</span>
+                <span>₹{o.totalAmount}</span>
+                <span className={`status-badge ${o.status}`}>{o.status}</span>
+              </div>
+            ))}
+            {orders.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No orders yet</p>}
+          </div>
+        </>
       )}
 
+      {/* ORDERS */}
+      {tab === 'orders' && <OrderTable orders={orders} onStatusChange={handleOrderStatus} />}
+
+      {/* MENU */}
       {tab === 'menu' && (
-        menuItems.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '3rem' }}>🍳</div><p>No menu items yet</p>
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>Menu Items ({menuItems.length})</h3>
+            <button className="btn btn-primary btn-sm" onClick={() => { setEditItem(null); setShowMenuForm(!showMenuForm); }}><FiPlus /> Add Item</button>
           </div>
-        ) : (
-          menuItems.map((item) => (
+          {showMenuForm && <MenuForm onSubmit={handleAddMenu} onCancel={() => setShowMenuForm(false)} />}
+          {editItem && <MenuForm item={editItem} onSubmit={handleEditMenu} onCancel={() => setEditItem(null)} />}
+          {menuItems.map((item) => (
             <div key={item._id} className="menu-manage-card">
               {item.image && <img src={item.image} alt={item.name} className="menu-manage-img" />}
               <div className="menu-manage-info">
                 <div className="menu-manage-name">{item.name}</div>
                 <div className="menu-manage-meta"><span>₹{item.price}</span><span>{item.category}</span></div>
               </div>
-              <div className={`toggle-switch ${item.isAvailable !== false ? 'active' : ''}`} onClick={() => handleToggleAvailability(item._id)} />
+              <div className="menu-manage-actions">
+                <div className={`toggle-switch ${item.isAvailable !== false ? 'active' : ''}`} onClick={() => handleToggleAvailability(item._id)} />
+                <button className="btn btn-ghost btn-sm" onClick={() => { setShowMenuForm(false); setEditItem(item); }}><FiEdit2 /></button>
+                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteMenu(item._id)}><FiTrash2 /></button>
+              </div>
             </div>
-          ))
-        )
+          ))}
+          {menuItems.length === 0 && <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}><div style={{ fontSize: '3rem' }}>🍳</div><p>No menu items yet</p></div>}
+        </>
+      )}
+
+      {/* ANALYTICS */}
+      {tab === 'analytics' && (
+        <>
+          <div className="stats-grid" style={{ marginBottom: 'var(--space-xl)' }}>
+            <StatCard icon="orders" color="orange" value={orders.length} label="Total Orders" />
+            <StatCard icon="revenue" color="green" value={`₹${totalRevenue.toLocaleString()}`} label="Revenue" />
+            <StatCard icon="products" color="blue" value={menuItems.length} label="Menu Items" />
+            <StatCard icon="completed" color="purple" value={orders.filter((o) => o.status === 'delivered').length} label="Delivered" />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>📊 Order Status</h3>
+              {Object.entries(statusBreakdown).map(([status, count]) => (
+                <div key={status} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                  <span className={`status-badge ${status}`}>{status}</span>
+                  <span style={{ fontWeight: 700 }}>{count}</span>
+                  <div style={{ width: 120, height: 8, background: 'var(--border-color)', borderRadius: 4 }}><div style={{ width: `${(count / orders.length) * 100}%`, height: '100%', background: 'var(--primary)', borderRadius: 4 }} /></div>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>🍽️ Menu by Category</h3>
+              {Object.entries(categoryStats).map(([cat, count]) => (
+                <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                  <span>{cat}</span>
+                  <span style={{ fontWeight: 700 }}>{count}</span>
+                  <div style={{ width: 120, height: 8, background: 'var(--border-color)', borderRadius: 4 }}><div style={{ width: `${(count / menuItems.length) * 100}%`, height: '100%', background: '#9b59b6', borderRadius: 4 }} /></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
