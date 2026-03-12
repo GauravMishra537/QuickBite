@@ -2,13 +2,15 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { FiSun, FiMoon, FiMenu, FiX, FiUser, FiLogOut, FiShoppingBag, FiCalendar, FiHeart } from 'react-icons/fi';
+import { useCart } from '../../context/CartContext';
+import { FiSun, FiMoon, FiMenu, FiX, FiUser, FiLogOut, FiShoppingBag, FiCalendar, FiHeart, FiShoppingCart, FiGrid } from 'react-icons/fi';
 import { MdRestaurant } from 'react-icons/md';
 import './Navbar.css';
 
 const Navbar = () => {
     const { theme, toggleTheme } = useTheme();
     const { user, isAuthenticated, logout } = useAuth();
+    const { itemCount } = useCart();
     const navigate = useNavigate();
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -73,6 +75,14 @@ const Navbar = () => {
                         {theme === 'light' ? <FiMoon /> : <FiSun />}
                     </button>
 
+                    {/* Cart icon for customers */}
+                    {(!isAuthenticated || user?.role === 'customer') && (
+                        <Link to="/checkout" className="theme-toggle" title="Cart" style={{ position: 'relative' }}>
+                            <FiShoppingCart />
+                            {itemCount > 0 && <span className="cart-count-badge">{itemCount}</span>}
+                        </Link>
+                    )}
+
                     {isAuthenticated ? (
                         <div className="user-menu" ref={dropdownRef}>
                             <div
@@ -89,6 +99,11 @@ const Navbar = () => {
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user?.email}</span>
                                 </div>
                                 <div className="user-dropdown-divider" />
+                                {user?.role !== 'customer' && (
+                                    <Link to="/dashboard" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                                        <FiGrid /> Dashboard
+                                    </Link>
+                                )}
                                 <Link to="/profile" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
                                     <FiUser /> Profile
                                 </Link>

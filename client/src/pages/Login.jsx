@@ -21,7 +21,13 @@ const Login = () => {
     const result = await login(email, password);
     if (result.success) {
       toast.success(`Welcome back, ${result.user.name}!`);
-      navigate('/');
+      // Role-based redirect
+      const role = result.user.role;
+      if (role === 'customer') {
+        navigate('/');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setError(result.message || 'Login failed');
     }
