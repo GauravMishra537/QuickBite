@@ -2,6 +2,8 @@ import { useAuth } from '../context/AuthContext';
 import RestaurantDashboard from './RestaurantDashboard';
 import CloudKitchenDashboard from './CloudKitchenDashboard';
 import GroceryDashboard from './GroceryDashboard';
+import DeliveryDashboard from './DeliveryDashboard';
+import NGODashboard from './NGODashboard';
 import { Link } from 'react-router-dom';
 import { FiShoppingBag, FiClock, FiStar, FiSettings, FiBarChart2 } from 'react-icons/fi';
 import './Auth.css';
@@ -10,6 +12,8 @@ const dashboardMap = {
   restaurant: RestaurantDashboard,
   cloudkitchen: CloudKitchenDashboard,
   grocery: GroceryDashboard,
+  delivery: DeliveryDashboard,
+  ngo: NGODashboard,
 };
 
 const fallbackConfig = {

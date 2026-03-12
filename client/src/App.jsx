@@ -13,6 +13,7 @@ import GroceryShops from './pages/GroceryShops';
 import GroceryDetail from './pages/GroceryDetail';
 import TableBooking from './pages/TableBooking';
 import Subscriptions from './pages/Subscriptions';
+import SurplusFood from './pages/SurplusFood';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="grocery/:id" element={<GroceryDetail />} />
           <Route path="bookings/new" element={<TableBooking />} />
           <Route path="subscriptions" element={<Subscriptions />} />
+          <Route path="donations" element={<SurplusFood />} />
 
           {/* Protected */}
           <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -40,7 +42,6 @@ function App() {
           {/* Stubs */}
           <Route path="cloud-kitchens" element={<PlaceholderPage title="Cloud Kitchens" />} />
           <Route path="cloud-kitchens/:id" element={<PlaceholderPage title="Cloud Kitchen Details" />} />
-          <Route path="donations" element={<PlaceholderPage title="Donate Food" />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
