@@ -1,6 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import ProtectedRoute from './components/common/ProtectedRoute';
 import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -8,7 +12,17 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          {/* Placeholder routes – pages will be built in upcoming commits */}
+
+          {/* Auth pages */}
+          <Route path="login" element={<Login />} />
+          <Route path="register" element={<Register />} />
+
+          {/* Protected pages */}
+          <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="orders" element={<ProtectedRoute><PlaceholderPage title="My Orders" /></ProtectedRoute>} />
+          <Route path="bookings" element={<ProtectedRoute><PlaceholderPage title="My Bookings" /></ProtectedRoute>} />
+
+          {/* Public pages (to be built in next commits) */}
           <Route path="restaurants" element={<PlaceholderPage title="Restaurants" />} />
           <Route path="restaurants/:id" element={<PlaceholderPage title="Restaurant Details" />} />
           <Route path="cloud-kitchens" element={<PlaceholderPage title="Cloud Kitchens" />} />
@@ -16,11 +30,8 @@ function App() {
           <Route path="grocery" element={<PlaceholderPage title="Grocery" />} />
           <Route path="subscriptions" element={<PlaceholderPage title="Subscriptions" />} />
           <Route path="donations" element={<PlaceholderPage title="Donate Food" />} />
-          <Route path="login" element={<PlaceholderPage title="Login" />} />
-          <Route path="register" element={<PlaceholderPage title="Register" />} />
-          <Route path="profile" element={<PlaceholderPage title="Profile" />} />
-          <Route path="orders" element={<PlaceholderPage title="My Orders" />} />
-          <Route path="bookings" element={<PlaceholderPage title="My Bookings" />} />
+
+          {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
@@ -28,7 +39,6 @@ function App() {
   );
 }
 
-// Temporary placeholder for routes not yet built
 function PlaceholderPage({ title }) {
   return (
     <div className="container section" style={{ textAlign: 'center' }}>
