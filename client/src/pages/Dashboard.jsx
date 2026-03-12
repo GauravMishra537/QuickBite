@@ -1,40 +1,18 @@
 import { useAuth } from '../context/AuthContext';
+import RestaurantDashboard from './RestaurantDashboard';
+import CloudKitchenDashboard from './CloudKitchenDashboard';
+import GroceryDashboard from './GroceryDashboard';
 import { Link } from 'react-router-dom';
 import { FiShoppingBag, FiClock, FiStar, FiSettings, FiBarChart2 } from 'react-icons/fi';
 import './Auth.css';
 
-const dashboards = {
-  restaurant: {
-    title: 'Restaurant Dashboard',
-    icon: '🍽️',
-    desc: 'Manage your restaurant, menu, and orders',
-    links: [
-      { label: 'Manage Orders', to: '/orders', icon: <FiShoppingBag /> },
-      { label: 'Manage Bookings', to: '/bookings', icon: <FiClock /> },
-      { label: 'View Reviews', to: '/reviews', icon: <FiStar /> },
-      { label: 'Settings', to: '/profile', icon: <FiSettings /> },
-    ],
-  },
-  cloudkitchen: {
-    title: 'Cloud Kitchen Dashboard',
-    icon: '☁️',
-    desc: 'Manage your cloud kitchen and menu items',
-    links: [
-      { label: 'Manage Orders', to: '/orders', icon: <FiShoppingBag /> },
-      { label: 'Analytics', to: '/analytics', icon: <FiBarChart2 /> },
-      { label: 'Settings', to: '/profile', icon: <FiSettings /> },
-    ],
-  },
-  grocery: {
-    title: 'Grocery Dashboard',
-    icon: '🥬',
-    desc: 'Manage your grocery shop and products',
-    links: [
-      { label: 'Manage Orders', to: '/orders', icon: <FiShoppingBag /> },
-      { label: 'Analytics', to: '/analytics', icon: <FiBarChart2 /> },
-      { label: 'Settings', to: '/profile', icon: <FiSettings /> },
-    ],
-  },
+const dashboardMap = {
+  restaurant: RestaurantDashboard,
+  cloudkitchen: CloudKitchenDashboard,
+  grocery: GroceryDashboard,
+};
+
+const fallbackConfig = {
   delivery: {
     title: 'Delivery Dashboard',
     icon: '🏍️',
@@ -71,9 +49,16 @@ const dashboards = {
 const Dashboard = () => {
   const { user } = useAuth();
   const role = user?.role || 'customer';
-  const config = dashboards[role];
 
-  // Customers see the home page, not a dashboard
+  // If we have a full dashboard component for this role, render it
+  const DashboardComponent = dashboardMap[role];
+  if (DashboardComponent) return <DashboardComponent />;
+
+  // Customers shouldn't see dashboard
+  if (role === 'customer') return null;
+
+  // Fallback card for delivery, ngo, admin (full dashboards will come later)
+  const config = fallbackConfig[role];
   if (!config) return null;
 
   return (
@@ -97,7 +82,7 @@ const Dashboard = () => {
                     key={link.to}
                     to={link.to}
                     className="profile-detail"
-                    style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', cursor: 'pointer', transition: 'all 150ms' }}
+                    style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', cursor: 'pointer' }}
                   >
                     <span style={{ fontSize: '1.25rem', color: 'var(--primary)' }}>{link.icon}</span>
                     <span className="profile-detail-value">{link.label}</span>

@@ -9,6 +9,10 @@ import Dashboard from './pages/Dashboard';
 import Restaurants from './pages/Restaurants';
 import RestaurantDetail from './pages/RestaurantDetail';
 import Checkout from './pages/Checkout';
+import GroceryShops from './pages/GroceryShops';
+import GroceryDetail from './pages/GroceryDetail';
+import TableBooking from './pages/TableBooking';
+import Subscriptions from './pages/Subscriptions';
 
 function App() {
   return (
@@ -21,22 +25,22 @@ function App() {
           <Route path="register" element={<Register />} />
           <Route path="restaurants" element={<Restaurants />} />
           <Route path="restaurants/:id" element={<RestaurantDetail />} />
+          <Route path="grocery" element={<GroceryShops />} />
+          <Route path="grocery/:id" element={<GroceryDetail />} />
+          <Route path="bookings/new" element={<TableBooking />} />
+          <Route path="subscriptions" element={<Subscriptions />} />
 
-          {/* Protected — all authenticated users */}
+          {/* Protected */}
           <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="checkout" element={<ProtectedRoute roles={['customer']}><Checkout /></ProtectedRoute>} />
           <Route path="orders" element={<ProtectedRoute><PlaceholderPage title="My Orders" /></ProtectedRoute>} />
-          <Route path="bookings" element={<ProtectedRoute><PlaceholderPage title="My Bookings" /></ProtectedRoute>} />
+          <Route path="bookings" element={<ProtectedRoute><TableBooking /></ProtectedRoute>} />
 
-          {/* Public stubs (built in next commits) */}
+          {/* Stubs */}
           <Route path="cloud-kitchens" element={<PlaceholderPage title="Cloud Kitchens" />} />
           <Route path="cloud-kitchens/:id" element={<PlaceholderPage title="Cloud Kitchen Details" />} />
-          <Route path="grocery" element={<PlaceholderPage title="Grocery" />} />
-          <Route path="subscriptions" element={<PlaceholderPage title="Subscriptions" />} />
           <Route path="donations" element={<PlaceholderPage title="Donate Food" />} />
-
-          {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

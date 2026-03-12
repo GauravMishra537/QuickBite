@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { FiStar, FiClock, FiMapPin, FiPhone, FiShoppingCart, FiPlus, FiMinus } from 'react-icons/fi';
+import { useParams, Link } from 'react-router-dom';
+import { FiStar, FiClock, FiMapPin, FiPhone, FiShoppingCart, FiPlus, FiMinus, FiCalendar } from 'react-icons/fi';
 import api from '../services/api';
 import { useCart } from '../context/CartContext';
 import './Customer.css';
@@ -91,7 +91,13 @@ const RestaurantDetail = () => {
         <div className="detail-content">
           {/* Menu */}
           <div>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.5rem', marginBottom: 'var(--space-lg)' }}>Menu</h2>
+            {/* Table Booking button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.5rem' }}>Menu</h2>
+              <Link to="/bookings/new" className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <FiCalendar /> Book a Table
+              </Link>
+            </div>
             {Object.keys(grouped).length === 0 ? (
               <p style={{ color: 'var(--text-muted)' }}>No menu items available yet.</p>
             ) : (
