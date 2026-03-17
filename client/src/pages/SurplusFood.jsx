@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FiHeart, FiMapPin, FiClock, FiUsers } from 'react-icons/fi';
-import api from '../services/api';
+import donationService from '../services/donationService';
 import './Customer.css';
 import './Services.css';
 
@@ -14,11 +14,11 @@ const SurplusFood = () => {
     const fetchData = async () => {
       try {
         const [donRes, ngoRes] = await Promise.all([
-          api.get('/donations/available').catch(() => ({ donations: [] })),
-          api.get('/donations/ngos').catch(() => ({ ngos: [] })),
+          donationService.getAvailable().catch(() => ({ data: { donations: [] } })),
+          donationService.getAllNGOs().catch(() => ({ data: { ngos: [] } })),
         ]);
-        setDonations(donRes.data?.donations || donRes.donations || []);
-        setNgos(ngoRes.data?.ngos || ngoRes.ngos || []);
+        setDonations(donRes.data?.donations || []);
+        setNgos(ngoRes.data?.ngos || []);
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
     };

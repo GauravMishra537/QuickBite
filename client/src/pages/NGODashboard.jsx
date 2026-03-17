@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react';
-import { FiHeart, FiPackage, FiCheckCircle, FiMapPin, FiClock } from 'react-icons/fi';
-import api from '../services/api';
+import { FiEdit2, FiSave } from 'react-icons/fi';
+import donationService from '../services/donationService';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import StatCard from '../components/dashboard/StatCard';
+import DonationCard from '../components/dashboard/DonationCard';
 import './Dashboard.css';
+
+const TABS = [
+  { key: 'overview', label: '📊 Overview' },
+  { key: 'available', label: '🍱 Available' },
+  { key: 'history', label: '📋 History' },
+  { key: 'profile', label: '🏛️ Profile' },
+];
 
 const NGODashboard = () => {
   const { user } = useAuth();
@@ -11,36 +20,63 @@ const NGODashboard = () => {
   const [available, setAvailable] = useState([]);
   const [received, setReceived] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('available');
+  const [tab, setTab] = useState('overview');
+  const [editMode, setEditMode] = useState(false);
+  const [profileForm, setProfileForm] = useState({});
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerForm, setRegisterForm] = useState({
+    name: '', description: '', registrationNumber: '', contactPerson: '', phone: '',
+    address: { street: '', city: '', state: '', zipCode: '' }, areasServed: '',
+  });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [ngoRes, availRes, recvRes] = await Promise.all([
-          api.get('/donations/ngo/my').catch(() => ({ data: null })),
-          api.get('/donations/available').catch(() => ({ donations: [] })),
-          api.get('/donations/ngo/received').catch(() => ({ donations: [] })),
-        ]);
-        setNgo(ngoRes.data?.ngo || ngoRes.ngo || ngoRes.data || null);
-        setAvailable(availRes.data?.donations || availRes.donations || []);
-        setReceived(recvRes.data?.donations || recvRes.donations || []);
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
-    };
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
+
+  const fetchData = async () => {
+    try {
+      const [ngoRes, availRes, recvRes] = await Promise.all([
+        donationService.getMyNGO().catch(() => ({ data: null })),
+        donationService.getAvailable().catch(() => ({ data: { donations: [] } })),
+        donationService.getNGODonations().catch(() => ({ data: { donations: [] } })),
+      ]);
+      const n = ngoRes.data?.ngo || ngoRes.data;
+      setNgo(n);
+      if (n) setProfileForm({
+        name: n.name || '', description: n.description || '', contactPerson: n.contactPerson || '',
+        phone: n.phone || '', email: n.email || '', website: n.website || '',
+      });
+      setAvailable(availRes.data?.donations || []);
+      setReceived(recvRes.data?.donations || []);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
 
   const handleRequestDonation = async (donationId) => {
     try {
-      await api.patch(`/donations/${donationId}/request`);
+      await donationService.requestDonation(donationId);
       setAvailable((prev) => prev.filter((d) => d._id !== donationId));
       toast.success('Donation requested! The restaurant will confirm. 🤝');
-    } catch (err) { toast.error(err.message || 'Request failed'); }
+    } catch (err) { toast.error(err.response?.data?.message || 'Request failed'); }
   };
 
-  const statusColor = (s) => {
-    const map = { available: 'var(--success)', requested: 'var(--warning)', accepted: 'var(--info)', pickedUp: '#9b59b6', delivered: 'var(--success)', expired: 'var(--danger)' };
-    return map[s] || 'var(--text-muted)';
+  const handleRegisterNGO = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = { ...registerForm, areasServed: registerForm.areasServed.split(',').map((s) => s.trim()).filter(Boolean) };
+      const res = await donationService.registerNGO(payload);
+      setNgo(res.data?.ngo || res.data);
+      setShowRegister(false);
+      toast.success('NGO registered successfully! 🏛️');
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.message || 'Registration failed'); }
+  };
+
+  const handleUpdateProfile = async () => {
+    try {
+      await donationService.updateNGO(ngo._id, profileForm);
+      setNgo((prev) => ({ ...prev, ...profileForm }));
+      setEditMode(false);
+      toast.success('Profile updated');
+    } catch { toast.error('Update failed'); }
   };
 
   if (loading) return (
@@ -49,84 +85,207 @@ const NGODashboard = () => {
     </div>
   );
 
+  // If no NGO registered, show registration
+  if (!ngo) return (
+    <div className="container dashboard-page">
+      <div className="dash-header"><div><h1>🤝 NGO Dashboard</h1><p style={{ color: 'var(--text-secondary)' }}>Register your NGO to start receiving food donations</p></div></div>
+      {!showRegister ? (
+        <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0' }}>
+          <div style={{ fontSize: '4rem', marginBottom: 'var(--space-lg)' }}>🏛️</div>
+          <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: 'var(--space-md)' }}>Register Your NGO</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-lg)', maxWidth: 500, margin: '0 auto var(--space-lg)' }}>Join QuickBite's surplus food redistribution network. Help reduce food waste by receiving donations from partner restaurants.</p>
+          <button className="btn btn-primary" onClick={() => setShowRegister(true)}>🏛️ Register NGO</button>
+        </div>
+      ) : (
+        <form onSubmit={handleRegisterNGO} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-xl)', maxWidth: 700, margin: '0 auto' }}>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-lg)' }}>🏛️ NGO Registration</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+            <div className="form-group"><label className="form-label">NGO Name *</label><input className="form-input" value={registerForm.name} onChange={(e) => setRegisterForm({...registerForm, name: e.target.value})} required /></div>
+            <div className="form-group"><label className="form-label">Registration No. *</label><input className="form-input" value={registerForm.registrationNumber} onChange={(e) => setRegisterForm({...registerForm, registrationNumber: e.target.value})} required /></div>
+            <div className="form-group"><label className="form-label">Contact Person *</label><input className="form-input" value={registerForm.contactPerson} onChange={(e) => setRegisterForm({...registerForm, contactPerson: e.target.value})} required /></div>
+            <div className="form-group"><label className="form-label">Phone *</label><input className="form-input" value={registerForm.phone} onChange={(e) => setRegisterForm({...registerForm, phone: e.target.value})} required /></div>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label">Description *</label><textarea className="form-input" rows={2} value={registerForm.description} onChange={(e) => setRegisterForm({...registerForm, description: e.target.value})} required /></div>
+            <div className="form-group"><label className="form-label">Street *</label><input className="form-input" value={registerForm.address.street} onChange={(e) => setRegisterForm({...registerForm, address: {...registerForm.address, street: e.target.value}})} required /></div>
+            <div className="form-group"><label className="form-label">City *</label><input className="form-input" value={registerForm.address.city} onChange={(e) => setRegisterForm({...registerForm, address: {...registerForm.address, city: e.target.value}})} required /></div>
+            <div className="form-group"><label className="form-label">State *</label><input className="form-input" value={registerForm.address.state} onChange={(e) => setRegisterForm({...registerForm, address: {...registerForm.address, state: e.target.value}})} required /></div>
+            <div className="form-group"><label className="form-label">Zip Code *</label><input className="form-input" value={registerForm.address.zipCode} onChange={(e) => setRegisterForm({...registerForm, address: {...registerForm.address, zipCode: e.target.value}})} required /></div>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label">Areas Served (comma-separated)</label><input className="form-input" value={registerForm.areasServed} onChange={(e) => setRegisterForm({...registerForm, areasServed: e.target.value})} placeholder="Mumbai, Delhi, Pune" /></div>
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>
+            <button type="submit" className="btn btn-primary">Register NGO</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setShowRegister(false)}>Cancel</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+
+  const deliveredCount = received.filter((d) => d.status === 'delivered').length;
+  const statusBreakdown = {};
+  received.forEach((d) => { statusBreakdown[d.status] = (statusBreakdown[d.status] || 0) + 1; });
+
   return (
     <div className="container dashboard-page">
       <div className="dash-header">
         <div>
-          <h1>🤝 {ngo?.name || 'NGO Dashboard'}</h1>
+          <h1>🤝 {ngo.name}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>Welcome back, {user?.name}</p>
         </div>
-      </div>
-
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-icon orange"><FiHeart /></div><div><div className="stat-value">{available.length}</div><div className="stat-label">Available Donations</div></div></div>
-        <div className="stat-card"><div className="stat-icon blue"><FiPackage /></div><div><div className="stat-value">{received.length}</div><div className="stat-label">Received</div></div></div>
-        <div className="stat-card"><div className="stat-icon green"><FiCheckCircle /></div><div><div className="stat-value">{ngo?.totalDonationsReceived || 0}</div><div className="stat-label">Total Received</div></div></div>
-        <div className="stat-card"><div className="stat-icon purple"><FiMapPin /></div><div><div className="stat-value">{ngo?.address?.city || 'City'}</div><div className="stat-label">Location</div></div></div>
+        {ngo.isVerified && <span className="status-badge ready" style={{ fontSize: '0.8125rem' }}>✓ Verified NGO</span>}
       </div>
 
       <div className="dash-tabs">
-        <button className={`dash-tab ${tab === 'available' ? 'active' : ''}`} onClick={() => setTab('available')}>Available ({available.length})</button>
-        <button className={`dash-tab ${tab === 'received' ? 'active' : ''}`} onClick={() => setTab('received')}>My Received ({received.length})</button>
+        {TABS.map((t) => <button key={t.key} className={`dash-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
       </div>
 
-      {tab === 'available' && (
-        available.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}>🍱</div>
-            <p>No surplus food available right now</p>
+      {/* ── OVERVIEW ── */}
+      {tab === 'overview' && (
+        <>
+          <div className="stats-grid">
+            <StatCard icon="donations" color="orange" value={available.length} label="Available Donations" />
+            <StatCard icon="orders" color="blue" value={received.length} label="Received" />
+            <StatCard icon="completed" color="green" value={ngo.totalDonationsReceived || deliveredCount} label="Total Received" />
+            <StatCard icon="location" color="purple" value={ngo.address?.city || 'City'} label="Location" />
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            {available.map((don) => (
-              <div key={don._id} className="menu-manage-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-md)' }}>
-                  <div>
-                    <div className="menu-manage-name" style={{ fontSize: '1rem' }}>
-                      🏪 {don.restaurant?.name || 'Restaurant'}
-                    </div>
-                    <div className="menu-manage-meta" style={{ marginTop: 4 }}>
-                      <span><FiMapPin style={{ marginRight: 2 }} /> {don.pickupAddress?.city || don.pickupAddress?.street || '—'}</span>
-                      <span><FiClock style={{ marginRight: 2 }} /> Expires: {new Date(don.expiresAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                      <span>🍽️ {don.totalServings || 0} servings</span>
-                    </div>
-                  </div>
-                  <button className="btn btn-primary btn-sm" onClick={() => handleRequestDonation(don._id)}>Request</button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>🍱 Recent Available</h3>
+              {available.slice(0, 4).map((d) => (
+                <div key={d._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                  <span style={{ fontWeight: 600 }}>{d.restaurant?.name || 'Restaurant'}</span>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{d.totalServings} servings</span>
+                  <button className="btn btn-primary btn-sm" onClick={() => handleRequestDonation(d._id)}>Request</button>
                 </div>
-                {don.items && don.items.length > 0 && (
-                  <div style={{ marginTop: 'var(--space-sm)', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    <strong>Items:</strong> {don.items.map((i) => `${i.name} (${i.quantity} ${i.unit || 'servings'})`).join(', ')}
+              ))}
+              {available.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No donations available right now</p>}
+            </div>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>📊 Donation Stats</h3>
+              {[
+                ['Available now', available.length],
+                ['Total received', ngo.totalDonationsReceived || deliveredCount],
+                ['Areas served', ngo.areasServed?.join(', ') || '—'],
+                ['Status', ngo.isVerified ? '✅ Verified' : '⏳ Pending verification'],
+              ].map(([label, value], i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                  <span>{label}</span><span style={{ fontWeight: 700 }}>{value}</span>
+                </div>
+              ))}
+              {/* Status breakdown */}
+              {Object.keys(statusBreakdown).length > 0 && (
+                <div style={{ marginTop: 'var(--space-md)', paddingTop: 'var(--space-sm)', borderTop: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>By Status:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {Object.entries(statusBreakdown).map(([status, count]) => (
+                      <span key={status} className={`status-badge ${status === 'delivered' ? 'delivered' : status === 'accepted' ? 'confirmed' : 'pending'}`}>
+                        {status}: {count}
+                      </span>
+                    ))}
                   </div>
-                )}
-                {don.notes && <div style={{ marginTop: 4, fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>"{don.notes}"</div>}
-              </div>
-            ))}
+                </div>
+              )}
+            </div>
           </div>
-        )
+        </>
       )}
 
-      {tab === 'received' && (
-        received.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '3rem' }}>📦</div><p>No donations received yet</p>
+      {/* ── AVAILABLE DONATIONS ── */}
+      {tab === 'available' && (
+        <>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-lg)' }}>
+            Available Donations ({available.length})
+          </h3>
+          {available.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}>🍱</div>
+              <p>No surplus food available right now</p>
+              <p style={{ fontSize: '0.875rem', marginTop: 4 }}>Check back later — restaurants list surplus food throughout the day</p>
+            </div>
+          ) : (
+            available.map((d) => <DonationCard key={d._id} donation={d} onRequest={handleRequestDonation} />)
+          )}
+        </>
+      )}
+
+      {/* ── DONATION HISTORY ── */}
+      {tab === 'history' && (
+        <>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-lg)' }}>
+            Donation History ({received.length})
+          </h3>
+          {received.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '3rem' }}>📦</div><p>No donations received yet</p>
+            </div>
+          ) : (
+            <>
+              <table className="orders-table" style={{ marginBottom: 'var(--space-xl)' }}>
+                <thead><tr><th>Restaurant</th><th>Items</th><th>Servings</th><th>Date</th><th>Status</th></tr></thead>
+                <tbody>
+                  {received.map((d) => (
+                    <tr key={d._id}>
+                      <td style={{ fontWeight: 600 }}>{d.restaurant?.name || 'Restaurant'}</td>
+                      <td>{d.items?.map((i) => i.name).join(', ') || '—'}</td>
+                      <td>{d.totalServings || 0}</td>
+                      <td>{new Date(d.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
+                      <td><span className={`status-badge ${d.status === 'delivered' ? 'delivered' : d.status === 'accepted' ? 'confirmed' : 'pending'}`}>{d.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {received.map((d) => <DonationCard key={d._id} donation={d} showActions={false} />)}
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── NGO PROFILE ── */}
+      {tab === 'profile' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-xl)', maxWidth: 700 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>🏛️ NGO Profile</h3>
+            <button className="btn btn-ghost btn-sm" onClick={() => { if (editMode) handleUpdateProfile(); else setEditMode(true); }}>
+              {editMode ? <><FiSave /> Save</> : <><FiEdit2 /> Edit</>}
+            </button>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            {received.map((don) => (
-              <div key={don._id} className="menu-manage-card">
-                <div className="menu-manage-info">
-                  <div className="menu-manage-name">🏪 {don.restaurant?.name || 'Restaurant'}</div>
-                  <div className="menu-manage-meta">
-                    <span>🍽️ {don.totalServings || 0} servings</span>
-                    <span>{don.items?.length || 0} items</span>
-                    <span>{new Date(don.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                  </div>
-                </div>
-                <span className="status-badge" style={{ background: `${statusColor(don.status)}22`, color: statusColor(don.status), textTransform: 'capitalize' }}>{don.status}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+            {[
+              { label: 'NGO Name', key: 'name' },
+              { label: 'Contact Person', key: 'contactPerson' },
+              { label: 'Phone', key: 'phone' },
+              { label: 'Email', key: 'email' },
+            ].map(({ label, key }) => (
+              <div className="form-group" key={key}>
+                <label className="form-label">{label}</label>
+                <input className="form-input" value={profileForm[key] || ''} disabled={!editMode} onChange={(e) => setProfileForm({...profileForm, [key]: e.target.value})} />
               </div>
             ))}
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">Description</label>
+              <textarea className="form-input" rows={2} value={profileForm.description || ''} disabled={!editMode} onChange={(e) => setProfileForm({...profileForm, description: e.target.value})} />
+            </div>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">Website</label>
+              <input className="form-input" value={profileForm.website || ''} disabled={!editMode} onChange={(e) => setProfileForm({...profileForm, website: e.target.value})} />
+            </div>
           </div>
-        )
+          {editMode && (
+            <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
+              <button className="btn btn-primary" onClick={handleUpdateProfile}><FiSave /> Save Changes</button>
+              <button className="btn btn-ghost" onClick={() => setEditMode(false)}>Cancel</button>
+            </div>
+          )}
+          <div style={{ marginTop: 'var(--space-lg)', padding: 'var(--space-md)', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+            <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, marginBottom: 8, fontSize: '0.9375rem' }}>Registration Details</h4>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.8 }}>
+              <strong>Registration No:</strong> {ngo.registrationNumber}<br />
+              <strong>Address:</strong> {ngo.address?.street}, {ngo.address?.city}, {ngo.address?.state} - {ngo.address?.zipCode}<br />
+              <strong>Areas Served:</strong> {ngo.areasServed?.join(', ') || '—'}<br />
+              <strong>Verified:</strong> {ngo.isVerified ? '✅ Yes' : '❌ No'}<br />
+              <strong>Joined:</strong> {new Date(ngo.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
