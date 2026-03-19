@@ -8,6 +8,8 @@ import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import Restaurants from './pages/Restaurants';
 import RestaurantDetail from './pages/RestaurantDetail';
+import CloudKitchens from './pages/CloudKitchens';
+import CloudKitchenDetail from './pages/CloudKitchenDetail';
 import Checkout from './pages/Checkout';
 import GroceryShops from './pages/GroceryShops';
 import GroceryDetail from './pages/GroceryDetail';
@@ -26,6 +28,8 @@ function App() {
           <Route path="register" element={<Register />} />
           <Route path="restaurants" element={<Restaurants />} />
           <Route path="restaurants/:id" element={<RestaurantDetail />} />
+          <Route path="cloud-kitchens" element={<CloudKitchens />} />
+          <Route path="cloud-kitchens/:id" element={<CloudKitchenDetail />} />
           <Route path="grocery" element={<GroceryShops />} />
           <Route path="grocery/:id" element={<GroceryDetail />} />
           <Route path="bookings/new" element={<TableBooking />} />
@@ -39,9 +43,6 @@ function App() {
           <Route path="orders" element={<ProtectedRoute><PlaceholderPage title="My Orders" /></ProtectedRoute>} />
           <Route path="bookings" element={<ProtectedRoute><TableBooking /></ProtectedRoute>} />
 
-          {/* Stubs */}
-          <Route path="cloud-kitchens" element={<PlaceholderPage title="Cloud Kitchens" />} />
-          <Route path="cloud-kitchens/:id" element={<PlaceholderPage title="Cloud Kitchen Details" />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
@@ -69,3 +70,4 @@ function NotFound() {
 }
 
 export default App;
+

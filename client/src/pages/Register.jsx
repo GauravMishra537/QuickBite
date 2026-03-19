@@ -50,7 +50,13 @@ const Register = () => {
 
     if (result.success) {
       toast.success(`Welcome to QuickBite, ${result.user.name}!`);
-      navigate('/');
+      // Role-based redirect — same as login
+      const role = result.user.role;
+      if (role === 'customer') {
+        navigate('/');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setError(result.message || 'Registration failed');
     }
