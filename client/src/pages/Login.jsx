@@ -91,6 +91,8 @@ const Login = () => {
           {[
             { label: 'Customer', email: 'aarav.sharma@gmail.com' },
             { label: 'Restaurant', email: 'rajesh.kapoor@gmail.com' },
+            { label: 'Delivery', email: 'delivery@quickbite.com' },
+            { label: 'NGO', email: 'ngo@quickbite.com' },
             { label: 'Admin', email: 'admin@quickbite.com' },
           ].map((demo) => (
             <button
