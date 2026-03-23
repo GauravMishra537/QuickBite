@@ -76,8 +76,8 @@ const createOrderCheckout = catchAsync(async (req, res, next) => {
             orderId: orderId,
             userId: req.user._id.toString(),
         },
-        success_url: `${req.protocol}://${req.get('host')}/api/payments/success?session_id={CHECKOUT_SESSION_ID}&type=order`,
-        cancel_url: `${req.protocol}://${req.get('host')}/api/payments/cancel?type=order&orderId=${orderId}`,
+        success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/orders?payment=success&session_id={CHECKOUT_SESSION_ID}&type=order`,
+        cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/checkout?payment=cancelled`,
     });
 
     ApiResponse.success(res, { sessionId: session.id, url: session.url }, 'Checkout session created');
@@ -123,8 +123,8 @@ const createBookingCheckout = catchAsync(async (req, res, next) => {
             bookingId: bookingId,
             userId: req.user._id.toString(),
         },
-        success_url: `${req.protocol}://${req.get('host')}/api/payments/success?session_id={CHECKOUT_SESSION_ID}&type=booking`,
-        cancel_url: `${req.protocol}://${req.get('host')}/api/payments/cancel?type=booking&bookingId=${bookingId}`,
+        success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/bookings?payment=success&session_id={CHECKOUT_SESSION_ID}&type=booking`,
+        cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/bookings/new?payment=cancelled`,
     });
 
     ApiResponse.success(res, { sessionId: session.id, url: session.url }, 'Booking checkout session created');
@@ -170,8 +170,8 @@ const createSubscriptionCheckout = catchAsync(async (req, res, next) => {
             subscriptionId: subscriptionId,
             userId: req.user._id.toString(),
         },
-        success_url: `${req.protocol}://${req.get('host')}/api/payments/success?session_id={CHECKOUT_SESSION_ID}&type=subscription`,
-        cancel_url: `${req.protocol}://${req.get('host')}/api/payments/cancel?type=subscription`,
+        success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/subscriptions?payment=success&session_id={CHECKOUT_SESSION_ID}&type=subscription`,
+        cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/subscriptions?payment=cancelled`,
     });
 
     ApiResponse.success(res, { sessionId: session.id, url: session.url }, 'Subscription checkout session created');

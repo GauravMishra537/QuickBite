@@ -51,14 +51,16 @@ const Checkout = () => {
         paymentMethod: paymentMethod === 'cod' ? 'cod' : 'stripe',
       };
 
-      const res = await api.post('/orders/create', orderData);
+      const res = await api.post('/orders', orderData);
+      const order = res.data?.order;
 
-      if (paymentMethod === 'stripe' && res.data?.order) {
+      if (paymentMethod === 'stripe' && order?._id) {
         try {
-          const checkoutRes = await api.post('/payments/create-checkout/order', { orderId: res.data.order._id });
-          if (checkoutRes.data?.url) {
+          const checkoutRes = await api.post('/payments/create-checkout/order', { orderId: order._id });
+          const stripeUrl = checkoutRes.data?.url;
+          if (stripeUrl) {
             clearCart();
-            window.location.href = checkoutRes.data.url;
+            window.location.href = stripeUrl;
             return;
           }
         } catch (stripeErr) {
