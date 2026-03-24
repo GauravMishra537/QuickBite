@@ -35,9 +35,24 @@ const Subscriptions = () => {
     if (!isAuthenticated) { toast.error('Please login to subscribe'); return; }
     setSubscribing(planType);
     try {
+      // Step 1: Create subscription as pending
       const res = await api.post('/subscriptions', { plan: planType });
-      setMySub(res.data?.subscription || res.data);
-      toast.success(`Successfully subscribed to ${planType} plan! 🎉`);
+      const subscription = res.data?.subscription || res.data;
+
+      // Step 2: Redirect to Stripe checkout for payment
+      try {
+        const checkoutRes = await api.post('/payments/create-checkout/subscription', { subscriptionId: subscription._id });
+        const stripeUrl = checkoutRes.data?.url;
+        if (stripeUrl) {
+          window.location.href = stripeUrl;
+          return;
+        }
+      } catch (stripeErr) {
+        toast.error('Payment gateway unavailable. Please try again later.');
+        return;
+      }
+
+      toast.info('Subscription created. Complete payment to activate.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Subscription failed');
     } finally { setSubscribing(null); }

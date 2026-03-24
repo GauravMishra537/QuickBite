@@ -39,6 +39,7 @@ const menuItemSchema = new mongoose.Schema(
                 'Soups',
                 'Combos',
                 'Snacks',
+                'Pizza',
             ],
         },
         image: { type: String, default: '' },

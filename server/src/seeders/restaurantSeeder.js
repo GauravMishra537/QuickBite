@@ -1,3 +1,5 @@
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const User = require('../models/User');
@@ -377,6 +379,28 @@ const seedRestaurantsAndKitchens = async () => {
             { name: 'Spring Rolls (4 pcs)', description: 'Crispy rolls stuffed with cabbage, carrots, and noodles', price: 149, category: 'Starters', isVeg: true, preparationTime: 10, spiceLevel: 'Mild', rating: 4.3, totalOrders: 1200, cloudKitchen: kitchens[1]._id },
         ];
 
+        // --- Roti & Rice Co. Menu ---
+        const rotiRiceItems = [
+            { name: 'Rajma Chawal', description: 'Creamy kidney bean curry served with steamed basmati rice', price: 159, category: 'Main Course', isVeg: true, preparationTime: 15, spiceLevel: 'Medium', isBestseller: true, rating: 4.5, totalOrders: 2800, cloudKitchen: kitchens[2]._id },
+            { name: 'Dal Makhani Thali', description: 'Black lentil curry with roti, rice, raita, salad, and papad', price: 219, category: 'Thali', isVeg: true, preparationTime: 20, spiceLevel: 'Mild', isBestseller: true, rating: 4.6, totalOrders: 3200, cloudKitchen: kitchens[2]._id },
+            { name: 'Paneer Thali', description: 'Paneer butter masala with roti, rice, dal, raita, and salad', price: 249, category: 'Thali', isVeg: true, preparationTime: 20, spiceLevel: 'Medium', rating: 4.4, totalOrders: 1900, cloudKitchen: kitchens[2]._id },
+            { name: 'Chicken Curry Thali', description: 'Home-style chicken curry with roti, rice, dal, and accompaniments', price: 279, category: 'Thali', isVeg: false, preparationTime: 25, spiceLevel: 'Medium', rating: 4.5, totalOrders: 2100, cloudKitchen: kitchens[2]._id },
+            { name: 'Jeera Rice', description: 'Fragrant basmati rice tempered with cumin seeds', price: 99, category: 'Rice & Biryani', isVeg: true, preparationTime: 10, spiceLevel: 'Mild', rating: 4.2, totalOrders: 3500, cloudKitchen: kitchens[2]._id },
+            { name: 'Aloo Gobi', description: 'Classic potato and cauliflower dry curry with turmeric', price: 149, category: 'Main Course', isVeg: true, preparationTime: 15, spiceLevel: 'Mild', rating: 4.3, totalOrders: 1200, cloudKitchen: kitchens[2]._id },
+            { name: 'Butter Roti (4 pcs)', description: 'Freshly made whole wheat rotis brushed with butter', price: 49, category: 'Breads', isVeg: true, preparationTime: 8, spiceLevel: 'Mild', rating: 4.4, totalOrders: 5000, cloudKitchen: kitchens[2]._id },
+        ];
+
+        // --- Pizza Planet Menu ---
+        const pizzaPlanetItems = [
+            { name: 'Tandoori Paneer Pizza', description: 'Loaded with tandoori paneer, onions, capsicum, and mozzarella', price: 349, category: 'Pizza', isVeg: true, preparationTime: 20, spiceLevel: 'Spicy', isBestseller: true, rating: 4.5, totalOrders: 2400, cloudKitchen: kitchens[3]._id },
+            { name: 'Chicken Tikka Pizza', description: 'Spicy chicken tikka with jalapenos and ranch drizzle', price: 399, category: 'Pizza', isVeg: false, preparationTime: 20, spiceLevel: 'Spicy', isBestseller: true, rating: 4.6, totalOrders: 2800, cloudKitchen: kitchens[3]._id },
+            { name: 'Farmhouse Supreme', description: 'Bell peppers, onions, mushrooms, olives, and corn', price: 299, category: 'Pizza', isVeg: true, preparationTime: 18, spiceLevel: 'Mild', rating: 4.3, totalOrders: 1800, cloudKitchen: kitchens[3]._id },
+            { name: 'BBQ Chicken Pizza', description: 'Smoky BBQ chicken with caramelized onions and cheddar', price: 429, category: 'Pizza', isVeg: false, preparationTime: 22, spiceLevel: 'Medium', rating: 4.4, totalOrders: 1500, cloudKitchen: kitchens[3]._id },
+            { name: 'Garlic Breadsticks (6 pcs)', description: 'Crispy breadsticks with garlic butter and herbs', price: 149, category: 'Starters', isVeg: true, preparationTime: 10, spiceLevel: 'Mild', isBestseller: true, rating: 4.5, totalOrders: 3200, cloudKitchen: kitchens[3]._id },
+            { name: 'Chocolate Lava Cake', description: 'Warm chocolate cake with molten center', price: 179, category: 'Desserts', isVeg: true, preparationTime: 12, spiceLevel: 'Mild', rating: 4.7, totalOrders: 1900, cloudKitchen: kitchens[3]._id },
+            { name: 'Cold Coffee', description: 'Creamy cold coffee with vanilla ice cream', price: 129, category: 'Beverages', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', rating: 4.3, totalOrders: 2100, cloudKitchen: kitchens[3]._id },
+        ];
+
         // Create all menu items
         const allMenuItems = [
             ...spiceGardenItems,
@@ -384,6 +408,8 @@ const seedRestaurantsAndKitchens = async () => {
             ...royalBiryaniItems,
             ...freshBowlItems,
             ...wokExpressItems,
+            ...rotiRiceItems,
+            ...pizzaPlanetItems,
         ];
 
         const createdItems = await MenuItem.create(allMenuItems);

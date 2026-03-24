@@ -10,7 +10,7 @@ const ApiResponse = require('../utils/apiResponse');
  * @access  Private (customer)
  */
 const createBooking = catchAsync(async (req, res, next) => {
-    const { restaurant, tableNumber, date, timeSlot, guests, specialRequests } = req.body;
+    const { restaurant, tableNumber, date, timeSlot, guests, specialRequests, preOrderTotal } = req.body;
 
     const rest = await Restaurant.findById(restaurant);
     if (!rest) return next(new AppError('Restaurant not found', 404));
@@ -40,7 +40,8 @@ const createBooking = catchAsync(async (req, res, next) => {
         return next(new AppError('This table is already booked for the selected time slot', 409));
     }
 
-    const bookingAmount = 199; // Base booking fee
+    const baseFee = 199;
+    const bookingAmount = baseFee + (Number(preOrderTotal) || 0);
 
     const booking = await TableBooking.create({
         user: req.user._id,

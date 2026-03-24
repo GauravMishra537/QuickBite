@@ -17,10 +17,10 @@ const CloudKitchenDetail = () => {
       try {
         const [kitchenRes, menuRes] = await Promise.all([
           api.get(`/cloud-kitchens/${id}`),
-          api.get(`/menu/kitchen/${id}`).catch(() => ({ data: { menuItems: [] } })),
+          api.get(`/menu/kitchen/${id}`).catch(() => ({ data: { items: [] } })),
         ]);
         setKitchen(kitchenRes.data?.kitchen || kitchenRes.kitchen);
-        setMenu(menuRes.data?.menuItems || []);
+        setMenu(menuRes.data?.items || menuRes.data?.menuItems || []);
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
     };
