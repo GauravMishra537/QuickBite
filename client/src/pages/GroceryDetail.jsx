@@ -99,7 +99,7 @@ const GroceryDetail = () => {
                           {prod.originalPrice && <span className="product-card-original">₹{prod.originalPrice}</span>}
                         </div>
                         {qty === 0 ? (
-                          <button className="add-btn" onClick={() => addItem(prod, { _id: shop._id, name: shop.name })}>ADD</button>
+                          <button className="add-btn" onClick={() => addItem(prod, { _id: shop._id, name: shop.name }, 'groceryShop')}>ADD</button>
                         ) : (
                           <div className="cart-qty">
                             <button onClick={() => updateQuantity(prod._id, qty - 1)}><FiMinus /></button>

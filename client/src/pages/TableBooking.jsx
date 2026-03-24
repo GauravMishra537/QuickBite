@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FiCalendar, FiUsers, FiClock, FiMapPin, FiCreditCard, FiPlus, FiMinus } from 'react-icons/fi';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -22,6 +23,8 @@ const BOOKING_FEE = 199;
 
 const TableBooking = () => {
   const { isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+  const preSelectedRestId = searchParams.get('restaurant');
   const [restaurants, setRestaurants] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
@@ -41,7 +44,13 @@ const TableBooking = () => {
     const fetchData = async () => {
       try {
         const restRes = await api.get('/restaurants');
-        setRestaurants(restRes.data?.restaurants || []);
+        const allRestaurants = restRes.data?.restaurants || [];
+        setRestaurants(allRestaurants);
+        // Auto-select restaurant from URL query param
+        if (preSelectedRestId && allRestaurants.length > 0) {
+          const match = allRestaurants.find((r) => r._id === preSelectedRestId);
+          if (match) setSelectedRest(match);
+        }
         if (isAuthenticated) {
           try {
             const bookRes = await api.get('/bookings/my-bookings');
@@ -52,7 +61,7 @@ const TableBooking = () => {
       finally { setLoading(false); }
     };
     fetchData();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, preSelectedRestId]);
 
   // Fetch menu when restaurant selected
   useEffect(() => {

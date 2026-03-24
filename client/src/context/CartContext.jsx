@@ -18,6 +18,11 @@ export const CartProvider = ({ children }) => {
     const saved = localStorage.getItem('quickbite-cart-restaurant');
     return saved ? JSON.parse(saved) : null;
   });
+  // Track source type: 'restaurant' | 'cloudKitchen' | 'groceryShop'
+  const [sourceType, setSourceType] = useState(() => {
+    const saved = localStorage.getItem('quickbite-cart-source-type');
+    return saved || 'restaurant';
+  });
 
   useEffect(() => {
     localStorage.setItem('quickbite-cart', JSON.stringify(items));
@@ -27,7 +32,11 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('quickbite-cart-restaurant', JSON.stringify(restaurant));
   }, [restaurant]);
 
-  const addItem = (item, source) => {
+  useEffect(() => {
+    localStorage.setItem('quickbite-cart-source-type', sourceType);
+  }, [sourceType]);
+
+  const addItem = (item, source, type = 'restaurant') => {
     // Prevent mixing items from different restaurants
     if (restaurant && source && restaurant._id !== source._id) {
       const confirmed = window.confirm(
@@ -37,7 +46,10 @@ export const CartProvider = ({ children }) => {
       setItems([]);
     }
 
-    if (source) setRestaurant(source);
+    if (source) {
+      setRestaurant(source);
+      setSourceType(type);
+    }
 
     setItems((prev) => {
       const existing = prev.find((i) => i._id === item._id);
@@ -55,7 +67,10 @@ export const CartProvider = ({ children }) => {
   const removeItem = (itemId) => {
     setItems((prev) => {
       const updated = prev.filter((i) => i._id !== itemId);
-      if (updated.length === 0) setRestaurant(null);
+      if (updated.length === 0) {
+        setRestaurant(null);
+        setSourceType('restaurant');
+      }
       return updated;
     });
   };
@@ -70,6 +85,7 @@ export const CartProvider = ({ children }) => {
   const clearCart = () => {
     setItems([]);
     setRestaurant(null);
+    setSourceType('restaurant');
   };
 
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
@@ -81,7 +97,7 @@ export const CartProvider = ({ children }) => {
   return (
     <CartContext.Provider
       value={{
-        items, restaurant, addItem, removeItem, updateQuantity, clearCart,
+        items, restaurant, sourceType, addItem, removeItem, updateQuantity, clearCart,
         itemCount, subtotal, deliveryFee, tax, total,
       }}
     >

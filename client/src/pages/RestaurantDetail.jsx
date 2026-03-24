@@ -94,7 +94,7 @@ const RestaurantDetail = () => {
             {/* Table Booking button */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
               <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.5rem' }}>Menu</h2>
-              <Link to="/bookings/new" className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Link to={`/book-table?restaurant=${id}`} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FiCalendar /> Book a Table
               </Link>
             </div>

@@ -8,7 +8,7 @@ import api from '../services/api';
 import './Customer.css';
 
 const Checkout = () => {
-  const { items, restaurant, subtotal, deliveryFee, tax, total, clearCart, updateQuantity } = useCart();
+  const { items, restaurant, sourceType, subtotal, deliveryFee, tax, total, clearCart, updateQuantity } = useCart();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState('cod');
@@ -37,12 +37,18 @@ const Checkout = () => {
     }
     setPlacing(true);
     try {
+      // Determine order type and entity field based on cart source
+      const orderType = sourceType === 'groceryShop' ? 'grocery' : 'food';
+      const entityField = sourceType === 'cloudKitchen' ? 'cloudKitchen'
+        : sourceType === 'groceryShop' ? 'groceryShop'
+        : 'restaurant';
+
       const orderData = {
-        orderType: 'food',
-        restaurant: restaurant._id,
+        orderType,
+        [entityField]: restaurant._id,
         items: items.map((i) => ({
           item: i._id,
-          itemModel: 'MenuItem',
+          itemModel: sourceType === 'groceryShop' ? 'Product' : 'MenuItem',
           name: i.name,
           price: i.price,
           quantity: i.quantity,

@@ -33,7 +33,7 @@ const CloudKitchenDetail = () => {
   };
 
   const handleAdd = (item) => {
-    addItem(item, { _id: id, name: kitchen?.name });
+    addItem(item, { _id: id, name: kitchen?.name }, 'cloudKitchen');
   };
 
   // Group menu by category
