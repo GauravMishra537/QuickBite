@@ -401,11 +401,47 @@ const seedRestaurantsAndKitchens = async () => {
             { name: 'Cold Coffee', description: 'Creamy cold coffee with vanilla ice cream', price: 129, category: 'Beverages', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', rating: 4.3, totalOrders: 2100, cloudKitchen: kitchens[3]._id },
         ];
 
+        // --- Bombay Brasserie Menu (restaurants[3]) ---
+        const bombayBrasserieItems = [
+            { name: 'Pav Bhaji', description: 'Spiced mashed vegetables with buttery pav bread', price: 179, category: 'Street Food', isVeg: true, preparationTime: 15, spiceLevel: 'Medium', isBestseller: true, rating: 4.6, totalOrders: 3800, restaurant: restaurants[3]._id },
+            { name: 'Vada Pav', description: 'Classic Mumbai street food — spicy potato fritter in bread', price: 69, category: 'Street Food', isVeg: true, preparationTime: 8, spiceLevel: 'Spicy', isBestseller: true, rating: 4.5, totalOrders: 5200, restaurant: restaurants[3]._id },
+            { name: 'Bombay Sandwich', description: 'Triple-decker grilled sandwich with chutney and veggies', price: 129, category: 'Starters', isVeg: true, preparationTime: 10, spiceLevel: 'Mild', rating: 4.3, totalOrders: 2100, restaurant: restaurants[3]._id },
+            { name: 'Misal Pav', description: 'Spicy sprouted lentil curry with pav and toppings', price: 159, category: 'Street Food', isVeg: true, preparationTime: 15, spiceLevel: 'Spicy', rating: 4.4, totalOrders: 1900, restaurant: restaurants[3]._id },
+            { name: 'Kolhapuri Chicken', description: 'Fiery red chicken curry in Kolhapuri masala', price: 329, category: 'Main Course', isVeg: false, preparationTime: 25, spiceLevel: 'Extra Spicy', rating: 4.5, totalOrders: 1600, restaurant: restaurants[3]._id },
+            { name: 'Sol Kadhi', description: 'Refreshing coconut milk and kokum digestive drink', price: 79, category: 'Beverages', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', rating: 4.2, totalOrders: 2400, restaurant: restaurants[3]._id },
+            { name: 'Puran Poli', description: 'Sweet stuffed flatbread with chana dal filling', price: 99, category: 'Desserts', isVeg: true, preparationTime: 12, spiceLevel: 'Mild', rating: 4.4, totalOrders: 1800, restaurant: restaurants[3]._id },
+        ];
+
+        // --- Chai & Chaat Corner Menu (restaurants[4]) ---
+        const chaiChaatItems = [
+            { name: 'Samosa Chaat', description: 'Crushed samosas topped with chutneys, yogurt, and sev', price: 99, category: 'Street Food', isVeg: true, preparationTime: 8, spiceLevel: 'Medium', isBestseller: true, rating: 4.5, totalOrders: 4500, restaurant: restaurants[4]._id },
+            { name: 'Aloo Tikki', description: 'Crispy potato patties with tamarind and mint chutney', price: 89, category: 'Street Food', isVeg: true, preparationTime: 10, spiceLevel: 'Medium', rating: 4.3, totalOrders: 3200, restaurant: restaurants[4]._id },
+            { name: 'Dahi Puri', description: 'Crisp puris filled with curd, sev, and sweet chutney', price: 109, category: 'Street Food', isVeg: true, preparationTime: 8, spiceLevel: 'Mild', isBestseller: true, rating: 4.6, totalOrders: 3800, restaurant: restaurants[4]._id },
+            { name: 'Masala Chai', description: 'Authentic Indian spiced tea with ginger and cardamom', price: 49, category: 'Beverages', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', isBestseller: true, rating: 4.7, totalOrders: 8000, restaurant: restaurants[4]._id },
+            { name: 'Chole Bhature', description: 'Spicy chickpea curry with fluffy fried bread', price: 169, category: 'Main Course', isVeg: true, preparationTime: 15, spiceLevel: 'Spicy', rating: 4.5, totalOrders: 2900, restaurant: restaurants[4]._id },
+            { name: 'Kachori', description: 'Deep-fried pastry stuffed with spiced lentils', price: 59, category: 'Snacks', isVeg: true, preparationTime: 8, spiceLevel: 'Medium', rating: 4.2, totalOrders: 2100, restaurant: restaurants[4]._id },
+            { name: 'Jalebi', description: 'Crispy spiral sweets soaked in saffron sugar syrup', price: 79, category: 'Desserts', isVeg: true, preparationTime: 10, spiceLevel: 'Mild', rating: 4.4, totalOrders: 3500, restaurant: restaurants[4]._id },
+        ];
+
+        // --- Punjab Grill Menu (restaurants[5]) ---
+        const punjabGrillItems = [
+            { name: 'Amritsari Fish', description: 'Crispy batter-fried fish marinated in ajwain spices', price: 349, category: 'Starters', isVeg: false, preparationTime: 18, spiceLevel: 'Spicy', isBestseller: true, rating: 4.6, totalOrders: 2200, restaurant: restaurants[5]._id },
+            { name: 'Dal Makhani', description: 'Rich, creamy black lentils slow-cooked overnight', price: 249, category: 'Main Course', isVeg: true, preparationTime: 20, spiceLevel: 'Mild', isBestseller: true, rating: 4.7, totalOrders: 4100, restaurant: restaurants[5]._id },
+            { name: 'Tandoori Raan', description: 'Whole marinated leg of lamb roasted in clay oven', price: 799, category: 'Main Course', isVeg: false, preparationTime: 35, spiceLevel: 'Medium', rating: 4.8, totalOrders: 1200, restaurant: restaurants[5]._id },
+            { name: 'Paneer Tikka', description: 'Chargrilled cottage cheese with bell peppers and onions', price: 269, category: 'Starters', isVeg: true, preparationTime: 15, spiceLevel: 'Medium', rating: 4.5, totalOrders: 3500, restaurant: restaurants[5]._id },
+            { name: 'Butter Naan', description: 'Soft clay-oven bread brushed with butter', price: 59, category: 'Breads', isVeg: true, preparationTime: 8, spiceLevel: 'Mild', rating: 4.4, totalOrders: 6000, restaurant: restaurants[5]._id },
+            { name: 'Lassi (Sweet/Salt)', description: 'Traditional thick yogurt drink', price: 89, category: 'Beverages', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', rating: 4.3, totalOrders: 3800, restaurant: restaurants[5]._id },
+            { name: 'Gulab Jamun (4 pcs)', description: 'Deep-fried milk dumplings in rose-cardamom syrup', price: 129, category: 'Desserts', isVeg: true, preparationTime: 10, spiceLevel: 'Mild', rating: 4.5, totalOrders: 2800, restaurant: restaurants[5]._id },
+        ];
+
         // Create all menu items
         const allMenuItems = [
             ...spiceGardenItems,
             ...dakshinItems,
             ...royalBiryaniItems,
+            ...bombayBrasserieItems,
+            ...chaiChaatItems,
+            ...punjabGrillItems,
             ...freshBowlItems,
             ...wokExpressItems,
             ...rotiRiceItems,

@@ -174,9 +174,21 @@ const TableBooking = () => {
             <div>
               {/* Select Restaurant */}
               <div className="booking-form-section">
-                <h3><FiMapPin /> Select Restaurant</h3>
+                <h3><FiMapPin /> {selectedRest && preSelectedRestId ? 'Restaurant' : 'Select Restaurant'}</h3>
                 {loading ? (
                   [...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 72, marginBottom: 8, borderRadius: 12 }} />)
+                ) : selectedRest && preSelectedRestId ? (
+                  /* Pre-selected: show selected restaurant card only */
+                  <div>
+                    <div className="restaurant-select-card selected" style={{ cursor: 'default' }}>
+                      <img src={selectedRest.images?.[0] || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=100&h=100&fit=crop'} alt={selectedRest.name} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600 }}>{selectedRest.name}</div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{(selectedRest.cuisine || []).slice(0, 2).join(', ')}</div>
+                      </div>
+                      <button className="btn btn-ghost btn-sm" onClick={() => { setSelectedRest(null); window.history.replaceState({}, '', '/book-table'); }} style={{ fontSize: '0.75rem' }}>Change</button>
+                    </div>
+                  </div>
                 ) : (
                   <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                     {restaurants.map((rest) => (
