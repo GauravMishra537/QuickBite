@@ -33,6 +33,7 @@ function App() {
           <Route path="grocery" element={<GroceryShops />} />
           <Route path="grocery/:id" element={<GroceryDetail />} />
           <Route path="bookings/new" element={<TableBooking />} />
+          <Route path="book-table" element={<TableBooking />} />
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="donations" element={<SurplusFood />} />
 
