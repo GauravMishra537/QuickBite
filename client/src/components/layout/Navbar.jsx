@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { FiSun, FiMoon, FiMenu, FiX, FiUser, FiLogOut, FiShoppingBag, FiCalendar, FiHeart, FiShoppingCart, FiGrid } from 'react-icons/fi';
 import { MdRestaurant } from 'react-icons/md';
+import SearchBar from '../SearchBar';
+import NotificationDropdown from '../NotificationDropdown';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -74,6 +76,9 @@ const Navbar = () => {
                     <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
                         {theme === 'light' ? <FiMoon /> : <FiSun />}
                     </button>
+
+                    <SearchBar />
+                    {isAuthenticated && <NotificationDropdown />}
 
                     {/* Cart icon for customers */}
                     {(!isAuthenticated || user?.role === 'customer') && (

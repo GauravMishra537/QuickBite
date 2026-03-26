@@ -101,7 +101,17 @@ const Login = () => {
               key={demo.email}
               className="btn btn-ghost btn-sm"
               style={{ fontSize: '0.75rem' }}
-              onClick={() => { setEmail(demo.email); setPassword(demo.label === 'Admin' ? 'Admin@123' : 'Password@123'); }}
+              onClick={() => {
+                if (demo.label === 'Admin') {
+                  const secret = window.prompt('🔐 Enter Admin Secret Password:');
+                  if (secret !== 'quickbite@admin123') {
+                    alert('❌ Wrong admin secret. Access denied.');
+                    return;
+                  }
+                }
+                setEmail(demo.email);
+                setPassword(demo.label === 'Admin' ? 'Admin@123' : 'Password@123');
+              }}
             >
               Demo: {demo.label}
             </button>

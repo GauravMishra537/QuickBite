@@ -3,13 +3,22 @@ import { useParams, Link } from 'react-router-dom';
 import { FiStar, FiClock, FiMapPin, FiPhone, FiShoppingCart, FiPlus, FiMinus, FiCalendar } from 'react-icons/fi';
 import api from '../services/api';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import ReviewForm from '../components/ReviewForm';
+import ReviewList from '../components/ReviewList';
+import { toast } from 'react-toastify';
 import './Customer.css';
 
 const RestaurantDetail = () => {
   const { id } = useParams();
   const { items: cartItems, addItem, removeItem, updateQuantity, subtotal, deliveryFee, tax, total, clearCart } = useCart();
+  const { user, isAuthenticated } = useAuth();
   const [restaurant, setRestaurant] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [avgRating, setAvgRating] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [reviewLoading, setReviewLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,7 +38,35 @@ const RestaurantDetail = () => {
       }
     };
     fetchData();
+    fetchReviews();
   }, [id]);
+
+  const fetchReviews = async () => {
+    try {
+      const res = await api.get(`/reviews/${id}`);
+      setReviews(res.data?.reviews || []);
+      setAvgRating(res.data?.averageRating || 0);
+      setReviewCount(res.data?.count || 0);
+    } catch (err) { console.error(err); }
+  };
+
+  const handlePostReview = async ({ rating, comment }) => {
+    setReviewLoading(true);
+    try {
+      await api.post('/reviews', { entityType: 'Restaurant', entity: id, rating, comment });
+      toast.success('Review posted! ⭐');
+      fetchReviews();
+    } catch (err) { toast.error(err.message || 'Failed to post review'); }
+    finally { setReviewLoading(false); }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    try {
+      await api.delete(`/reviews/${reviewId}`);
+      toast.success('Review deleted');
+      fetchReviews();
+    } catch { toast.error('Failed to delete'); }
+  };
 
   if (loading) {
     return (
@@ -176,6 +213,14 @@ const RestaurantDetail = () => {
               </>
             )}
           </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div style={{ marginTop: 'var(--space-2xl)', paddingTop: 'var(--space-xl)', borderTop: '1px solid var(--border-color)' }}>
+          {isAuthenticated && user?.role === 'customer' && (
+            <ReviewForm onSubmit={handlePostReview} loading={reviewLoading} />
+          )}
+          <ReviewList reviews={reviews} averageRating={avgRating} count={reviewCount} currentUserId={user?._id} onDelete={handleDeleteReview} />
         </div>
       </div>
     </div>
