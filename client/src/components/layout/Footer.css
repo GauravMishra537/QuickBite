@@ -96,6 +96,12 @@
     color: var(--primary);
 }
 
+.footer-contact-list a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .footer-bottom {
     margin-top: var(--space-2xl);
     padding-top: var(--space-lg);
