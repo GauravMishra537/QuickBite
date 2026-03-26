@@ -15,13 +15,34 @@ const createMenuItem = catchAsync(async (req, res, next) => {
     let entityField;
 
     if (req.user.role === 'restaurant') {
-        const restaurant = await Restaurant.findOne({ owner: req.user._id });
-        if (!restaurant) return next(new AppError('You do not have a registered restaurant', 404));
+        let restaurant = await Restaurant.findOne({ owner: req.user._id });
+        if (!restaurant) {
+            restaurant = await Restaurant.create({
+                owner: req.user._id,
+                name: `${req.user.name}'s Restaurant`,
+                description: 'A new restaurant on QuickBite',
+                cuisine: ['Multi-Cuisine'],
+                address: { street: 'Address pending', city: 'City', state: 'State', zipCode: '000000' },
+                tables: [
+                    { tableNumber: 1, capacity: 2, location: 'indoor' },
+                    { tableNumber: 2, capacity: 4, location: 'indoor' },
+                    { tableNumber: 3, capacity: 6, location: 'outdoor' },
+                ],
+            });
+        }
         entityId = restaurant._id;
         entityField = 'restaurant';
     } else if (req.user.role === 'cloudkitchen') {
-        const kitchen = await CloudKitchen.findOne({ owner: req.user._id });
-        if (!kitchen) return next(new AppError('You do not have a registered cloud kitchen', 404));
+        let kitchen = await CloudKitchen.findOne({ owner: req.user._id });
+        if (!kitchen) {
+            kitchen = await CloudKitchen.create({
+                owner: req.user._id,
+                name: `${req.user.name}'s Cloud Kitchen`,
+                description: 'A new cloud kitchen on QuickBite',
+                cuisine: ['Multi-Cuisine'],
+                address: { street: 'Address pending', city: 'City', state: 'State', zipCode: '000000' },
+            });
+        }
         entityId = kitchen._id;
         entityField = 'cloudKitchen';
     } else {

@@ -67,8 +67,16 @@ const getGroceryShop = catchAsync(async (req, res, next) => {
  * @access  Private (grocery role)
  */
 const getMyShop = catchAsync(async (req, res, next) => {
-    const shop = await GroceryShop.findOne({ owner: req.user._id }).populate('products');
-    if (!shop) return next(new AppError('You have not registered a grocery shop yet.', 404));
+    let shop = await GroceryShop.findOne({ owner: req.user._id }).populate('products');
+    if (!shop) {
+        shop = await GroceryShop.create({
+            owner: req.user._id,
+            name: `${req.user.name}'s Grocery Store`,
+            description: 'A new grocery store on QuickBite',
+            categories: ['General'],
+            address: { street: 'Address pending', city: 'City', state: 'State', zipCode: '000000' },
+        });
+    }
     ApiResponse.success(res, { shop }, 'Your grocery shop retrieved');
 });
 
@@ -111,8 +119,16 @@ const deleteGroceryShop = catchAsync(async (req, res, next) => {
  * @access  Private (grocery role)
  */
 const addProduct = catchAsync(async (req, res, next) => {
-    const shop = await GroceryShop.findOne({ owner: req.user._id });
-    if (!shop) return next(new AppError('You do not have a registered grocery shop', 404));
+    let shop = await GroceryShop.findOne({ owner: req.user._id });
+    if (!shop) {
+        shop = await GroceryShop.create({
+            owner: req.user._id,
+            name: `${req.user.name}'s Grocery Store`,
+            description: 'A new grocery store on QuickBite',
+            categories: ['General'],
+            address: { street: 'Address pending', city: 'City', state: 'State', zipCode: '000000' },
+        });
+    }
 
     const product = await Product.create({ ...req.body, shop: shop._id });
     ApiResponse.created(res, { product }, 'Product added successfully');

@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 
-const CATEGORIES = ['Fruits', 'Vegetables', 'Dairy', 'Bakery', 'Beverages', 'Snacks', 'Grains', 'Spices', 'Frozen', 'Personal Care', 'Household', 'Other'];
+const CATEGORIES = ['Fruits & Vegetables', 'Dairy & Eggs', 'Grains & Cereals', 'Spices & Masalas', 'Oils & Ghee', 'Snacks & Beverages', 'Personal Care', 'Household', 'Bakery', 'Frozen Foods', 'Dry Fruits & Nuts', 'Pulses & Lentils', 'Rice & Flour', 'Condiments & Sauces', 'Baby Care'];
 
 const ProductForm = ({ product = null, onSubmit, onCancel }) => {
   const [form, setForm] = useState({
-    name: '', description: '', price: '', category: 'Vegetables',
+    name: '', description: '', price: '', category: 'Fruits & Vegetables',
     image: '', unit: 'kg', stock: '100', discount: '0',
   });
 
   useEffect(() => {
     if (product) setForm({
       name: product.name || '', description: product.description || '',
-      price: product.price || '', category: product.category || 'Vegetables',
+      price: product.price || '', category: product.category || 'Fruits & Vegetables',
       image: product.image || '', unit: product.unit || 'kg',
       stock: product.stock || '100', discount: product.discount || '0',
     });
@@ -43,7 +43,7 @@ const ProductForm = ({ product = null, onSubmit, onCancel }) => {
         <div className="form-group">
           <label className="form-label">Unit</label>
           <select className="form-input" value={form.unit} onChange={(e) => setForm({...form, unit: e.target.value})}>
-            {['kg', 'g', 'ltr', 'ml', 'pcs', 'pack', 'dozen'].map((u) => <option key={u} value={u}>{u}</option>)}
+            {['kg', 'g', 'L', 'ml', 'pcs', 'pack', 'dozen', 'bottle'].map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </div>
         <div className="form-group">
