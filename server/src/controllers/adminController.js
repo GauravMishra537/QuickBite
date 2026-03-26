@@ -3,29 +3,29 @@ const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const CloudKitchen = require('../models/CloudKitchen');
 const GroceryShop = require('../models/GroceryShop');
+const NGO = require('../models/NGO');
+const DeliveryPartner = require('../models/DeliveryPartner');
 const Review = require('../models/Review');
+const Donation = require('../models/Donation');
 const catchAsync = require('../utils/catchAsync');
 const ApiResponse = require('../utils/apiResponse');
 
 /** @desc Platform-wide stats  @route GET /api/admin/stats  @access Admin */
 const getPlatformStats = catchAsync(async (req, res) => {
     const [
-        totalUsers,
-        totalOrders,
-        totalRestaurants,
-        totalKitchens,
-        totalGrocery,
-        totalReviews,
-        revenueAgg,
-        roleCounts,
-        orderStatusCounts,
+        totalUsers, totalOrders, totalRestaurants, totalKitchens,
+        totalGrocery, totalNGOs, totalDeliveryPartners, totalReviews, totalDonations,
+        revenueAgg, roleCounts, orderStatusCounts,
     ] = await Promise.all([
         User.countDocuments(),
         Order.countDocuments(),
         Restaurant.countDocuments(),
         CloudKitchen.countDocuments(),
         GroceryShop.countDocuments(),
+        NGO.countDocuments(),
+        DeliveryPartner.countDocuments(),
         Review.countDocuments(),
+        Donation.countDocuments(),
         Order.aggregate([
             { $match: { status: 'delivered' } },
             { $group: { _id: null, total: { $sum: '$totalAmount' } } },
@@ -41,15 +41,9 @@ const getPlatformStats = catchAsync(async (req, res) => {
     orderStatusCounts.forEach((s) => { orderStatuses[s._id] = s.count; });
 
     ApiResponse.success(res, {
-        totalUsers,
-        totalOrders,
-        totalRestaurants,
-        totalKitchens,
-        totalGrocery,
-        totalReviews,
-        totalRevenue,
-        roles,
-        orderStatuses,
+        totalUsers, totalOrders, totalRestaurants, totalKitchens,
+        totalGrocery, totalNGOs, totalDeliveryPartners, totalReviews, totalDonations,
+        totalRevenue, roles, orderStatuses,
     }, 'Platform stats retrieved');
 });
 
@@ -122,6 +116,74 @@ const toggleRestaurantStatus = catchAsync(async (req, res) => {
     ApiResponse.success(res, { restaurant }, `Restaurant ${restaurant.isActive ? 'activated' : 'suspended'}`);
 });
 
+/** @desc Get all cloud kitchens  @route GET /api/admin/cloud-kitchens  @access Admin */
+const getAllCloudKitchens = catchAsync(async (req, res) => {
+    const kitchens = await CloudKitchen.find()
+        .populate('owner', 'name email')
+        .sort({ createdAt: -1 }).lean();
+    ApiResponse.success(res, { kitchens }, 'Cloud kitchens retrieved');
+});
+
+/** @desc Toggle cloud kitchen active  @route PATCH /api/admin/cloud-kitchens/:id/toggle  @access Admin */
+const toggleCloudKitchenStatus = catchAsync(async (req, res) => {
+    const kitchen = await CloudKitchen.findById(req.params.id);
+    if (!kitchen) return res.status(404).json({ success: false, message: 'Cloud kitchen not found' });
+    kitchen.isActive = !kitchen.isActive;
+    await kitchen.save({ validateBeforeSave: false });
+    ApiResponse.success(res, { kitchen }, `Cloud kitchen ${kitchen.isActive ? 'activated' : 'suspended'}`);
+});
+
+/** @desc Get all grocery shops  @route GET /api/admin/grocery-shops  @access Admin */
+const getAllGroceryShops = catchAsync(async (req, res) => {
+    const shops = await GroceryShop.find()
+        .populate('owner', 'name email')
+        .sort({ createdAt: -1 }).lean();
+    ApiResponse.success(res, { shops }, 'Grocery shops retrieved');
+});
+
+/** @desc Toggle grocery shop active  @route PATCH /api/admin/grocery-shops/:id/toggle  @access Admin */
+const toggleGroceryShopStatus = catchAsync(async (req, res) => {
+    const shop = await GroceryShop.findById(req.params.id);
+    if (!shop) return res.status(404).json({ success: false, message: 'Grocery shop not found' });
+    shop.isActive = !shop.isActive;
+    await shop.save({ validateBeforeSave: false });
+    ApiResponse.success(res, { shop }, `Grocery shop ${shop.isActive ? 'activated' : 'suspended'}`);
+});
+
+/** @desc Get all NGOs  @route GET /api/admin/ngos  @access Admin */
+const getAllNGOs = catchAsync(async (req, res) => {
+    const ngos = await NGO.find()
+        .populate('owner', 'name email')
+        .sort({ createdAt: -1 }).lean();
+    ApiResponse.success(res, { ngos }, 'NGOs retrieved');
+});
+
+/** @desc Toggle NGO active  @route PATCH /api/admin/ngos/:id/toggle  @access Admin */
+const toggleNGOStatus = catchAsync(async (req, res) => {
+    const ngo = await NGO.findById(req.params.id);
+    if (!ngo) return res.status(404).json({ success: false, message: 'NGO not found' });
+    ngo.isActive = !ngo.isActive;
+    await ngo.save({ validateBeforeSave: false });
+    ApiResponse.success(res, { ngo }, `NGO ${ngo.isActive ? 'activated' : 'suspended'}`);
+});
+
+/** @desc Get all delivery partners  @route GET /api/admin/delivery-partners  @access Admin */
+const getAllDeliveryPartners = catchAsync(async (req, res) => {
+    const partners = await DeliveryPartner.find()
+        .populate('user', 'name email phone')
+        .sort({ createdAt: -1 }).lean();
+    ApiResponse.success(res, { partners }, 'Delivery partners retrieved');
+});
+
+/** @desc Toggle delivery partner active  @route PATCH /api/admin/delivery-partners/:id/toggle  @access Admin */
+const toggleDeliveryPartnerStatus = catchAsync(async (req, res) => {
+    const partner = await DeliveryPartner.findById(req.params.id);
+    if (!partner) return res.status(404).json({ success: false, message: 'Delivery partner not found' });
+    partner.isActive = !partner.isActive;
+    await partner.save({ validateBeforeSave: false });
+    ApiResponse.success(res, { partner }, `Delivery partner ${partner.isActive ? 'activated' : 'suspended'}`);
+});
+
 module.exports = {
     getPlatformStats,
     getAllUsers,
@@ -129,4 +191,12 @@ module.exports = {
     getAllOrders,
     getAllRestaurants,
     toggleRestaurantStatus,
+    getAllCloudKitchens,
+    toggleCloudKitchenStatus,
+    getAllGroceryShops,
+    toggleGroceryShopStatus,
+    getAllNGOs,
+    toggleNGOStatus,
+    getAllDeliveryPartners,
+    toggleDeliveryPartnerStatus,
 };

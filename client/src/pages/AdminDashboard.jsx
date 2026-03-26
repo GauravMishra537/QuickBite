@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FiUsers, FiShoppingBag, FiDollarSign, FiMapPin, FiSearch, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
+import { FiUsers, FiSearch, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -10,6 +10,10 @@ const TABS = [
   { key: 'overview', label: '📊 Overview' },
   { key: 'users', label: '👥 Users' },
   { key: 'restaurants', label: '🍽️ Restaurants' },
+  { key: 'kitchens', label: '☁️ Cloud Kitchens' },
+  { key: 'grocery', label: '🥬 Grocery Shops' },
+  { key: 'ngos', label: '🤝 NGOs' },
+  { key: 'delivery', label: '🏍️ Delivery Partners' },
   { key: 'orders', label: '📋 Orders' },
   { key: 'analytics', label: '📈 Analytics' },
 ];
@@ -20,6 +24,10 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
+  const [kitchens, setKitchens] = useState([]);
+  const [shops, setShops] = useState([]);
+  const [ngos, setNgos] = useState([]);
+  const [partners, setPartners] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('');
@@ -30,15 +38,23 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, usersRes, restRes, ordersRes] = await Promise.all([
+      const [statsRes, usersRes, restRes, kitchenRes, shopRes, ngoRes, partnerRes, ordersRes] = await Promise.all([
         api.get('/admin/stats'),
         api.get('/admin/users?limit=100'),
         api.get('/admin/restaurants'),
+        api.get('/admin/cloud-kitchens'),
+        api.get('/admin/grocery-shops'),
+        api.get('/admin/ngos'),
+        api.get('/admin/delivery-partners'),
         api.get('/admin/orders?limit=100'),
       ]);
       setStats(statsRes.data);
       setUsers(usersRes.data?.users || []);
       setRestaurants(restRes.data?.restaurants || []);
+      setKitchens(kitchenRes.data?.kitchens || []);
+      setShops(shopRes.data?.shops || []);
+      setNgos(ngoRes.data?.ngos || []);
+      setPartners(partnerRes.data?.partners || []);
       setOrders(ordersRes.data?.orders || []);
     } catch (err) { toast.error('Failed to load admin data'); console.error(err); }
     finally { setLoading(false); }
@@ -47,18 +63,18 @@ const AdminDashboard = () => {
   const toggleUser = async (id) => {
     try {
       const res = await api.patch(`/admin/users/${id}/toggle`);
-      const updated = res.data?.user;
-      setUsers((prev) => prev.map((u) => u._id === id ? { ...u, isActive: updated?.isActive ?? !u.isActive } : u));
-      toast.success(res.message || 'User status updated');
+      setUsers((p) => p.map((u) => u._id === id ? { ...u, isActive: res.data?.user?.isActive ?? !u.isActive } : u));
+      toast.success(res.message || 'Updated');
     } catch { toast.error('Failed'); }
   };
 
-  const toggleRestaurant = async (id) => {
+  const toggleEntity = async (type, id, setter) => {
     try {
-      const res = await api.patch(`/admin/restaurants/${id}/toggle`);
-      const updated = res.data?.restaurant;
-      setRestaurants((prev) => prev.map((r) => r._id === id ? { ...r, isActive: updated?.isActive ?? !r.isActive } : r));
-      toast.success(res.message || 'Restaurant status updated');
+      const res = await api.patch(`/admin/${type}/${id}/toggle`);
+      const key = Object.keys(res.data || {})[0];
+      const updated = res.data?.[key];
+      setter((p) => p.map((e) => e._id === id ? { ...e, isActive: updated?.isActive ?? !e.isActive } : e));
+      toast.success(res.message || 'Updated');
     } catch { toast.error('Failed'); }
   };
 
@@ -73,13 +89,57 @@ const AdminDashboard = () => {
     if (searchTerm && !u.name?.toLowerCase().includes(searchTerm.toLowerCase()) && !u.email?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
-
   const filteredOrders = orders.filter((o) => !statusFilter || o.status === statusFilter);
 
   const roleBadge = (role) => {
     const colors = { customer: '#3498db', restaurant: '#e67e22', cloudkitchen: '#9b59b6', grocery: '#2ecc71', delivery: '#e74c3c', ngo: '#1abc9c', admin: '#f39c12' };
     return <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600, background: `${colors[role] || '#666'}22`, color: colors[role] || '#666', border: `1px solid ${colors[role] || '#666'}44` }}>{role}</span>;
   };
+
+  const statusBadge = (active) => <span className={`status-badge ${active ? 'ready' : 'cancelled'}`}>{active ? 'Active' : 'Inactive'}</span>;
+
+  /* Reusable entity table */
+  const EntityTable = ({ title, data, columns, toggleType, setter }) => (
+    <>
+      <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-lg)' }}>{title} ({data.length})</h3>
+      <table className="orders-table">
+        <thead><tr>{columns.map((c) => <th key={c.label}>{c.label}</th>)}<th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {data.map((item) => (
+            <tr key={item._id}>
+              {columns.map((c) => <td key={c.label} style={c.style || {}}>{c.render(item)}</td>)}
+              <td>{statusBadge(item.isActive)}</td>
+              <td>
+                <button className="btn btn-ghost btn-sm" onClick={() => toggleEntity(toggleType, item._id, setter)}>
+                  {item.isActive ? <FiToggleRight size={18} color="var(--success)" /> : <FiToggleLeft size={18} color="var(--danger)" />}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {data.length === 0 && <p style={{ textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--text-muted)' }}>No data found</p>}
+    </>
+  );
+
+  /* Analytics card that navigates to tab */
+  const AnalyticsCard = ({ emoji, value, label, targetTab, color }) => (
+    <button
+      onClick={() => setTab(targetTab)}
+      style={{
+        background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-lg)', textAlign: 'center', cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s',
+        width: '100%',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+    >
+      <div style={{ fontSize: '1.5rem', marginBottom: 4 }}>{emoji}</div>
+      <div style={{ fontSize: '2.5rem', fontWeight: 800, color: color || 'var(--primary)' }}>{value}</div>
+      <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.875rem' }}>{label}</p>
+      <div style={{ fontSize: '0.6875rem', color: 'var(--primary)', marginTop: 8, fontWeight: 600 }}>Click to view details →</div>
+    </button>
+  );
 
   return (
     <div className="container dashboard-page">
@@ -90,8 +150,8 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="dash-tabs">
-        {TABS.map((t) => <button key={t.key} className={`dash-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
+      <div className="dash-tabs" style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
+        {TABS.map((t) => <button key={t.key} className={`dash-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)} style={{ whiteSpace: 'nowrap' }}>{t.label}</button>)}
       </div>
 
       {/* OVERVIEW */}
@@ -101,7 +161,7 @@ const AdminDashboard = () => {
             <StatCard icon="users" color="blue" value={stats.totalUsers} label="Total Users" />
             <StatCard icon="orders" color="orange" value={stats.totalOrders} label="Total Orders" />
             <StatCard icon="revenue" color="green" value={`₹${(stats.totalRevenue || 0).toLocaleString()}`} label="Revenue" />
-            <StatCard icon="restaurants" color="purple" value={stats.totalRestaurants + stats.totalKitchens} label="Restaurants & Kitchens" />
+            <StatCard icon="restaurants" color="purple" value={stats.totalRestaurants + stats.totalKitchens + stats.totalGrocery} label="All Businesses" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)' }}>
@@ -149,15 +209,9 @@ const AdminDashboard = () => {
                   <td style={{ fontWeight: 600 }}>{u.name}</td>
                   <td style={{ fontSize: '0.8125rem' }}>{u.email}</td>
                   <td>{roleBadge(u.role)}</td>
-                  <td><span className={`status-badge ${u.isActive ? 'ready' : 'cancelled'}`}>{u.isActive ? 'Active' : 'Inactive'}</span></td>
+                  <td>{statusBadge(u.isActive)}</td>
                   <td style={{ fontSize: '0.8125rem' }}>{new Date(u.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    {u.role !== 'admin' && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => toggleUser(u._id)} title={u.isActive ? 'Deactivate' : 'Activate'}>
-                        {u.isActive ? <FiToggleRight size={18} color="var(--success)" /> : <FiToggleLeft size={18} color="var(--danger)" />}
-                      </button>
-                    )}
-                  </td>
+                  <td>{u.role !== 'admin' && <button className="btn btn-ghost btn-sm" onClick={() => toggleUser(u._id)}>{u.isActive ? <FiToggleRight size={18} color="var(--success)" /> : <FiToggleLeft size={18} color="var(--danger)" />}</button>}</td>
                 </tr>
               ))}
             </tbody>
@@ -168,30 +222,70 @@ const AdminDashboard = () => {
 
       {/* RESTAURANTS */}
       {tab === 'restaurants' && (
-        <>
-          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-lg)' }}>
-            All Restaurants ({restaurants.length})
-          </h3>
-          <table className="orders-table">
-            <thead><tr><th>Name</th><th>Owner</th><th>Cuisine</th><th>Rating</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody>
-              {restaurants.map((r) => (
-                <tr key={r._id}>
-                  <td style={{ fontWeight: 600 }}>{r.name}</td>
-                  <td style={{ fontSize: '0.8125rem' }}>{r.owner?.name || '—'}</td>
-                  <td style={{ fontSize: '0.8125rem' }}>{(r.cuisine || []).slice(0, 2).join(', ')}</td>
-                  <td>⭐ {r.rating || '—'}</td>
-                  <td><span className={`status-badge ${r.isActive ? 'ready' : 'cancelled'}`}>{r.isActive ? 'Active' : 'Suspended'}</span></td>
-                  <td>
-                    <button className="btn btn-ghost btn-sm" onClick={() => toggleRestaurant(r._id)}>
-                      {r.isActive ? <FiToggleRight size={18} color="var(--success)" /> : <FiToggleLeft size={18} color="var(--danger)" />}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
+        <EntityTable
+          title="All Restaurants" data={restaurants} toggleType="restaurants" setter={setRestaurants}
+          columns={[
+            { label: 'Name', render: (r) => <span style={{ fontWeight: 600 }}>{r.name}</span> },
+            { label: 'Owner', render: (r) => r.owner?.name || '—', style: { fontSize: '0.8125rem' } },
+            { label: 'Cuisine', render: (r) => (r.cuisine || []).slice(0, 2).join(', '), style: { fontSize: '0.8125rem' } },
+            { label: 'Rating', render: (r) => `⭐ ${r.rating || '—'}` },
+          ]}
+        />
+      )}
+
+      {/* CLOUD KITCHENS */}
+      {tab === 'kitchens' && (
+        <EntityTable
+          title="All Cloud Kitchens" data={kitchens} toggleType="cloud-kitchens" setter={setKitchens}
+          columns={[
+            { label: 'Name', render: (k) => <span style={{ fontWeight: 600 }}>{k.name}</span> },
+            { label: 'Owner', render: (k) => k.owner?.name || '—', style: { fontSize: '0.8125rem' } },
+            { label: 'Cuisine', render: (k) => (k.cuisine || []).slice(0, 2).join(', '), style: { fontSize: '0.8125rem' } },
+            { label: 'Rating', render: (k) => `⭐ ${k.rating || '—'}` },
+          ]}
+        />
+      )}
+
+      {/* GROCERY SHOPS */}
+      {tab === 'grocery' && (
+        <EntityTable
+          title="All Grocery Shops" data={shops} toggleType="grocery-shops" setter={setShops}
+          columns={[
+            { label: 'Name', render: (s) => <span style={{ fontWeight: 600 }}>{s.name}</span> },
+            { label: 'Owner', render: (s) => s.owner?.name || '—', style: { fontSize: '0.8125rem' } },
+            { label: 'Categories', render: (s) => (s.categories || []).slice(0, 3).join(', '), style: { fontSize: '0.8125rem' } },
+            { label: 'Rating', render: (s) => `⭐ ${s.rating || '—'}` },
+          ]}
+        />
+      )}
+
+      {/* NGOs */}
+      {tab === 'ngos' && (
+        <EntityTable
+          title="All NGOs" data={ngos} toggleType="ngos" setter={setNgos}
+          columns={[
+            { label: 'Name', render: (n) => <span style={{ fontWeight: 600 }}>{n.name}</span> },
+            { label: 'Owner', render: (n) => n.owner?.name || '—', style: { fontSize: '0.8125rem' } },
+            { label: 'Contact', render: (n) => n.contactPerson || '—', style: { fontSize: '0.8125rem' } },
+            { label: 'Phone', render: (n) => n.phone || '—', style: { fontSize: '0.8125rem' } },
+            { label: 'Donations', render: (n) => n.totalDonationsReceived || 0 },
+          ]}
+        />
+      )}
+
+      {/* DELIVERY PARTNERS */}
+      {tab === 'delivery' && (
+        <EntityTable
+          title="All Delivery Partners" data={partners} toggleType="delivery-partners" setter={setPartners}
+          columns={[
+            { label: 'Name', render: (p) => <span style={{ fontWeight: 600 }}>{p.user?.name || '—'}</span> },
+            { label: 'Email', render: (p) => p.user?.email || '—', style: { fontSize: '0.8125rem' } },
+            { label: 'Vehicle', render: (p) => `${p.vehicleType} (${p.vehicleNumber})`, style: { fontSize: '0.8125rem' } },
+            { label: 'Deliveries', render: (p) => p.totalDeliveries || 0 },
+            { label: 'Earnings', render: (p) => `₹${(p.totalEarnings || 0).toLocaleString()}` },
+            { label: 'Available', render: (p) => p.isAvailable ? '🟢 Yes' : '🔴 No' },
+          ]}
+        />
       )}
 
       {/* ORDERS */}
@@ -223,7 +317,7 @@ const AdminDashboard = () => {
         </>
       )}
 
-      {/* ANALYTICS */}
+      {/* ANALYTICS — clickable cards */}
       {tab === 'analytics' && stats && (
         <>
           <div className="stats-grid">
@@ -232,19 +326,15 @@ const AdminDashboard = () => {
             <StatCard icon="users" color="blue" value={stats.totalUsers} label="Total Users" />
             <StatCard icon="completed" color="purple" value={stats.totalReviews} label="Reviews" />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}>
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--primary)' }}>{stats.totalRestaurants}</div>
-              <p style={{ color: 'var(--text-muted)' }}>Restaurants</p>
-            </div>
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', fontWeight: 800, color: '#9b59b6' }}>{stats.totalKitchens}</div>
-              <p style={{ color: 'var(--text-muted)' }}>Cloud Kitchens</p>
-            </div>
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', fontWeight: 800, color: '#2ecc71' }}>{stats.totalGrocery}</div>
-              <p style={{ color: 'var(--text-muted)' }}>Grocery Shops</p>
-            </div>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, margin: 'var(--space-xl) 0 var(--space-md)' }}>📂 Click to view details</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 'var(--space-lg)' }}>
+            <AnalyticsCard emoji="🍽️" value={stats.totalRestaurants} label="Restaurants" targetTab="restaurants" color="#e67e22" />
+            <AnalyticsCard emoji="☁️" value={stats.totalKitchens} label="Cloud Kitchens" targetTab="kitchens" color="#9b59b6" />
+            <AnalyticsCard emoji="🥬" value={stats.totalGrocery} label="Grocery Shops" targetTab="grocery" color="#2ecc71" />
+            <AnalyticsCard emoji="🤝" value={stats.totalNGOs} label="NGOs" targetTab="ngos" color="#1abc9c" />
+            <AnalyticsCard emoji="🏍️" value={stats.totalDeliveryPartners} label="Delivery Partners" targetTab="delivery" color="#e74c3c" />
+            <AnalyticsCard emoji="📦" value={stats.totalDonations} label="Donations" targetTab="orders" color="#f39c12" />
+            <AnalyticsCard emoji="👥" value={stats.totalUsers} label="All Users" targetTab="users" color="#3498db" />
           </div>
         </>
       )}
