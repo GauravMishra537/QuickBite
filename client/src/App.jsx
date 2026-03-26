@@ -16,6 +16,7 @@ import GroceryDetail from './pages/GroceryDetail';
 import TableBooking from './pages/TableBooking';
 import Subscriptions from './pages/Subscriptions';
 import SurplusFood from './pages/SurplusFood';
+import { AboutPage, CareersPage, PartnerPage, BlogPage, ContactPage, HelpPage, FAQPage, SafetyPage, TermsPage, PrivacyPage } from './pages/FooterPages';
 
 function App() {
   return (
@@ -36,6 +37,18 @@ function App() {
           <Route path="book-table" element={<TableBooking />} />
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="donations" element={<SurplusFood />} />
+
+          {/* Footer pages */}
+          <Route path="about" element={<AboutPage />} />
+          <Route path="careers" element={<CareersPage />} />
+          <Route path="partner" element={<PartnerPage />} />
+          <Route path="blog" element={<BlogPage />} />
+          <Route path="contact" element={<ContactPage />} />
+          <Route path="help" element={<HelpPage />} />
+          <Route path="faq" element={<FAQPage />} />
+          <Route path="safety" element={<SafetyPage />} />
+          <Route path="terms" element={<TermsPage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
 
           {/* Protected */}
           <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
