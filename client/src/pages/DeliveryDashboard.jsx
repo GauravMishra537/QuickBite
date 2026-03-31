@@ -10,6 +10,7 @@ import './Dashboard.css';
 
 const TABS = [
   { key: 'overview', label: '📊 Overview' },
+  { key: 'active', label: '🏍️ Active' },
   { key: 'available', label: '📦 Available' },
   { key: 'history', label: '📋 History' },
   { key: 'earnings', label: '💰 Earnings' },
@@ -19,6 +20,7 @@ const DeliveryDashboard = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [availableOrders, setAvailableOrders] = useState([]);
+  const [activeOrders, setActiveOrders] = useState([]);
   const [history, setHistory] = useState([]);
   const [earnings, setEarnings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,14 +30,16 @@ const DeliveryDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [profileRes, availRes, histRes, earnRes] = await Promise.all([
+      const [profileRes, availRes, activeRes, histRes, earnRes] = await Promise.all([
         deliveryService.getProfile().catch(() => ({ data: null })),
         deliveryService.getAvailable().catch(() => ({ data: { deliveries: [], orders: [] } })),
+        deliveryService.getActive().catch(() => ({ data: { orders: [] } })),
         deliveryService.getHistory().catch(() => ({ data: { deliveries: [], orders: [] } })),
         deliveryService.getEarnings().catch(() => ({ data: { earnings: null } })),
       ]);
       setProfile(profileRes.data?.partner || profileRes.data);
       setAvailableOrders(availRes.data?.deliveries || availRes.data?.orders || []);
+      setActiveOrders(activeRes.data?.orders || []);
       setHistory(histRes.data?.deliveries || histRes.data?.orders || []);
       setEarnings(earnRes.data?.earnings || earnRes.data);
     } catch (err) { console.error(err); }
@@ -134,6 +138,64 @@ const DeliveryDashboard = () => {
               ))}
             </div>
           </div>
+        </>
+      )}
+
+      {/* ── ACTIVE DELIVERIES ── */}
+      {tab === 'active' && (
+        <>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-lg)' }}>
+            🏍️ Active Deliveries ({activeOrders.length})
+          </h3>
+          {activeOrders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}>🏍️</div>
+              <p>No active deliveries</p>
+              <p style={{ fontSize: '0.875rem', marginTop: 4 }}>Accept an order from the Available tab to start delivering</p>
+            </div>
+          ) : (
+            activeOrders.map((order) => {
+              const source = order.restaurant || order.cloudKitchen || order.groceryShop || {};
+              const sourceType = order.restaurant ? '🍽️ Restaurant' : order.cloudKitchen ? '👨‍🍳 Cloud Kitchen' : '🛒 Grocery';
+              const statusColor = order.status === 'delivered' ? '#27ae60' : '#e74c3c';
+              const statusLabel = order.status === 'delivered' ? '✅ Delivered' : '🚚 Out for Delivery';
+              return (
+                <div key={order._id} style={{ background: 'var(--bg-card)', border: '2px solid var(--primary)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', marginBottom: 'var(--space-md)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
+                    <div>
+                      <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>#{order._id?.slice(-6).toUpperCase()}</span>
+                      <h4 style={{ fontWeight: 700, marginTop: 4 }}>{sourceType}: {source.name || 'N/A'}</h4>
+                    </div>
+                    <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 700, background: `${statusColor}22`, color: statusColor, border: `1px solid ${statusColor}44` }}>{statusLabel}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 2 }}>📍 Pickup</p>
+                      <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>{source.name}</p>
+                      <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{source.address?.street || source.address || 'Address'}</p>
+                      {source.phone && <p style={{ fontSize: '0.8125rem', color: 'var(--primary)' }}>📞 {source.phone}</p>}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 2 }}>🏠 Drop-off</p>
+                      <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>{order.user?.name || 'Customer'}</p>
+                      <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{order.deliveryAddress?.street || 'Address'}, {order.deliveryAddress?.city || ''}</p>
+                      {order.user?.phone && <p style={{ fontSize: '0.8125rem', color: 'var(--primary)' }}>📞 {order.user.phone}</p>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: 'var(--space-md)' }}>
+                    <div>
+                      <span style={{ fontWeight: 700, fontSize: '1.125rem' }}>₹{order.totalAmount || 0}</span>
+                      <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: '0.8125rem' }}>{order.items?.length || 0} items</span>
+                      <span style={{ color: 'var(--success)', marginLeft: 8, fontSize: '0.8125rem', fontWeight: 600 }}>Earn ₹{order.deliveryFee || 50}</span>
+                    </div>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      {order.status === 'delivered' ? '✅ Delivery complete' : '📦 Deliver to customer & status updates from business'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </>
       )}
 

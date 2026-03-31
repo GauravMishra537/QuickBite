@@ -19,6 +19,9 @@ const deliveryService = {
   // Get available deliveries
   getAvailable: () => api.get('/deliveries/available'),
 
+  // Get active deliveries (currently assigned)
+  getActive: () => api.get('/deliveries/active'),
+
   // Accept a delivery
   acceptDelivery: (orderId) => api.patch(`/deliveries/accept/${orderId}`),
 

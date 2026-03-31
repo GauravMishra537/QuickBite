@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const ApiResponse = require('../utils/apiResponse');
+const { emitOrderUpdate } = require('../config/socket');
 
 /**
  * @desc    Register as delivery partner
@@ -140,9 +141,14 @@ const completeDelivery = catchAsync(async (req, res, next) => {
     order.status = 'delivered';
     order.deliveredAt = new Date();
     order.paymentStatus = 'completed';
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({ status: 'delivered', timestamp: new Date() });
     await order.save();
 
-    const earningsPerDelivery = 50; // Base earnings per delivery
+    // Emit real-time update to customer + business dashboards
+    emitOrderUpdate(order._id.toString(), { status: 'delivered', orderId: order._id });
+
+    const earningsPerDelivery = 50;
     const partner = await DeliveryPartner.findOneAndUpdate(
         { user: req.user._id },
         {
@@ -155,6 +161,31 @@ const completeDelivery = catchAsync(async (req, res, next) => {
     );
 
     ApiResponse.success(res, { order, partner }, 'Delivery completed');
+});
+
+/**
+ * @desc    Get active deliveries (currently assigned to this partner)
+ * @route   GET /api/deliveries/active
+ * @access  Private (delivery role)
+ */
+const getActiveDeliveries = catchAsync(async (req, res) => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const orders = await Order.find({
+        deliveryPartner: req.user._id,
+        $or: [
+            { status: 'outForDelivery' },
+            { status: 'delivered', deliveredAt: { $gte: todayStart } },
+        ],
+    })
+        .populate('restaurant', 'name address phone')
+        .populate('cloudKitchen', 'name address phone')
+        .populate('groceryShop', 'name address phone')
+        .populate('user', 'name phone')
+        .sort({ createdAt: -1 })
+        .lean();
+
+    ApiResponse.success(res, { orders }, 'Active deliveries retrieved');
 });
 
 /**
@@ -231,6 +262,7 @@ module.exports = {
     updateLocation,
     toggleAvailability,
     getAvailableDeliveries,
+    getActiveDeliveries,
     acceptDelivery,
     completeDelivery,
     getDeliveryHistory,

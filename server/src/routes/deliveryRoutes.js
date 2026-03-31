@@ -7,6 +7,7 @@ const {
     updateLocation,
     toggleAvailability,
     getAvailableDeliveries,
+    getActiveDeliveries,
     acceptDelivery,
     completeDelivery,
     getDeliveryHistory,
@@ -22,6 +23,7 @@ router.put('/profile', protect, authorize('delivery'), updateProfile);
 router.patch('/location', protect, authorize('delivery'), updateLocation);
 router.patch('/toggle-availability', protect, authorize('delivery'), toggleAvailability);
 router.get('/available', protect, authorize('delivery'), getAvailableDeliveries);
+router.get('/active', protect, authorize('delivery'), getActiveDeliveries);
 router.patch('/accept/:orderId', protect, authorize('delivery'), acceptDelivery);
 router.patch('/complete/:orderId', protect, authorize('delivery'), completeDelivery);
 router.get('/history', protect, authorize('delivery'), getDeliveryHistory);
