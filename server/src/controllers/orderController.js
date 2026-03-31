@@ -6,6 +6,7 @@ const DeliveryPartner = require('../models/DeliveryPartner');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const ApiResponse = require('../utils/apiResponse');
+const { emitOrderUpdate } = require('../config/socket');
 
 /**
  * @desc    Create a new order
@@ -206,6 +207,9 @@ const updateOrderStatus = catchAsync(async (req, res, next) => {
         order.cancelReason = req.body.cancelReason || 'Cancelled by business';
     }
     await order.save();
+
+    // Emit real-time update via Socket.IO
+    try { emitOrderUpdate(order._id.toString(), { status: order.status, updatedAt: new Date() }); } catch (e) { /* socket not ready */ }
 
     ApiResponse.success(res, { order }, `Order status updated to ${status}`);
 });

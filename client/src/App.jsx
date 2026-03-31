@@ -16,6 +16,8 @@ import GroceryDetail from './pages/GroceryDetail';
 import TableBooking from './pages/TableBooking';
 import Subscriptions from './pages/Subscriptions';
 import SurplusFood from './pages/SurplusFood';
+import OrderTracking from './pages/OrderTracking';
+import MyOrders from './pages/MyOrders';
 import { AboutPage, CareersPage, PartnerPage, BlogPage, ContactPage, HelpPage, FAQPage, SafetyPage, TermsPage, PrivacyPage } from './pages/FooterPages';
 
 function App() {
@@ -54,7 +56,8 @@ function App() {
           <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="checkout" element={<ProtectedRoute roles={['customer']}><Checkout /></ProtectedRoute>} />
-          <Route path="orders" element={<ProtectedRoute><PlaceholderPage title="My Orders" /></ProtectedRoute>} />
+          <Route path="orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+          <Route path="track/:id" element={<ProtectedRoute><OrderTracking /></ProtectedRoute>} />
           <Route path="bookings" element={<ProtectedRoute><TableBooking /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />

@@ -1,5 +1,6 @@
 const dns = require('node:dns');
 dns.setServers(['8.8.8.8', '1.1.1.1']);
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -10,6 +11,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 const AppError = require('./utils/AppError');
+const { initSocket } = require('./config/socket');
 
 // Load environment variables
 dotenv.config();
@@ -126,8 +128,12 @@ app.use(errorHandler);
 // ---------------------
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
   console.log(`🚀 QuickBite server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  console.log(`📡 Socket.IO attached`);
 });
 
 // Handle unhandled promise rejections
