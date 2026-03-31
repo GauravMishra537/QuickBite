@@ -207,34 +207,98 @@ const NGODashboard = () => {
         </>
       )}
 
-      {/* ── DONATION HISTORY ── */}
+      {/* ── DONATION TRACKING ── */}
       {tab === 'history' && (
         <>
           <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-lg)' }}>
-            Donation History ({received.length})
+            Donation Tracking ({received.length})
           </h3>
           {received.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 'var(--space-3xl) 0', color: 'var(--text-muted)' }}>
               <div style={{ fontSize: '3rem' }}>📦</div><p>No donations received yet</p>
             </div>
           ) : (
-            <>
-              <table className="orders-table" style={{ marginBottom: 'var(--space-xl)' }}>
-                <thead><tr><th>Restaurant</th><th>Items</th><th>Servings</th><th>Date</th><th>Status</th></tr></thead>
-                <tbody>
-                  {received.map((d) => (
-                    <tr key={d._id}>
-                      <td style={{ fontWeight: 600 }}>{d.restaurant?.name || 'Restaurant'}</td>
-                      <td>{d.items?.map((i) => i.name).join(', ') || '—'}</td>
-                      <td>{d.totalServings || 0}</td>
-                      <td>{new Date(d.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
-                      <td><span className={`status-badge ${d.status === 'delivered' ? 'delivered' : d.status === 'accepted' ? 'confirmed' : 'pending'}`}>{d.status}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {received.map((d) => <DonationCard key={d._id} donation={d} showActions={false} />)}
-            </>
+            received.map((d) => {
+              const steps = [
+                { key: 'requested', label: 'Requested', icon: '📩' },
+                { key: 'accepted', label: 'Accepted', icon: '✅' },
+                { key: 'preparing', label: 'Preparing', icon: '🍳' },
+                { key: 'readyForPickup', label: 'Ready', icon: '📦' },
+                { key: 'outForDelivery', label: 'On the Way', icon: '🚚' },
+                { key: 'delivered', label: 'Delivered', icon: '🎉' },
+              ];
+              const statusOrder = steps.map((s) => s.key);
+              const currentIdx = statusOrder.indexOf(d.status);
+
+              return (
+                <div key={d._id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', marginBottom: 'var(--space-md)' }}>
+                  {/* Header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
+                    <div>
+                      <h4 style={{ fontWeight: 700 }}>🍱 {d.items?.map((i) => `${i.name} (${i.quantity} ${i.unit})`).join(', ')}</h4>
+                      <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                        From: <strong>{d.restaurant?.name || 'Restaurant'}</strong> • {d.totalServings} servings
+                      </p>
+                    </div>
+                    <span style={{
+                      display: 'inline-block', padding: '4px 14px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 700,
+                      background: d.status === 'delivered' ? '#27ae6022' : '#e67e2222',
+                      color: d.status === 'delivered' ? '#27ae60' : '#e67e22',
+                      border: `1px solid ${d.status === 'delivered' ? '#27ae6044' : '#e67e2244'}`,
+                    }}>
+                      {d.status}
+                    </span>
+                  </div>
+
+                  {/* Status Tracker */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderTop: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)', marginBottom: 'var(--space-md)' }}>
+                    {steps.map((step, idx) => {
+                      const isCompleted = idx <= currentIdx;
+                      const isCurrent = idx === currentIdx;
+                      return (
+                        <div key={step.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative' }}>
+                          {idx > 0 && (
+                            <div style={{
+                              position: 'absolute', top: 16, right: '50%', width: '100%', height: 3,
+                              background: idx <= currentIdx ? 'var(--primary)' : 'var(--border-color)',
+                              zIndex: 0,
+                            }} />
+                          )}
+                          <div style={{
+                            width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.875rem', zIndex: 1, position: 'relative',
+                            background: isCompleted ? 'var(--primary)' : 'var(--bg-secondary)',
+                            border: `2px solid ${isCompleted ? 'var(--primary)' : 'var(--border-color)'}`,
+                            boxShadow: isCurrent ? '0 0 0 4px rgba(255, 107, 53, 0.2)' : 'none',
+                            animation: isCurrent ? 'pulse 2s infinite' : 'none',
+                          }}>
+                            {step.icon}
+                          </div>
+                          <span style={{ fontSize: '0.625rem', marginTop: 4, color: isCompleted ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: isCurrent ? 700 : 400, textAlign: 'center' }}>
+                            {step.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Pickup Details */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', fontSize: '0.8125rem' }}>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>📍 Pickup from:</span>
+                      <p style={{ fontWeight: 600 }}>{d.restaurant?.name}</p>
+                      <p style={{ color: 'var(--text-secondary)' }}>{d.pickupAddress?.street || d.restaurant?.address?.street || ''}, {d.pickupAddress?.city || d.restaurant?.address?.city || ''}</p>
+                      {d.restaurant?.phone && <p style={{ color: 'var(--primary)' }}>📞 {d.restaurant.phone}</p>}
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-muted)' }}>⏰ Expires:</span>
+                      <p style={{ fontWeight: 600 }}>{new Date(d.expiresAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                      <p style={{ color: 'var(--text-secondary)' }}>Listed: {new Date(d.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </>
       )}

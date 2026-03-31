@@ -164,7 +164,7 @@ const acceptDonation = catchAsync(async (req, res, next) => {
  */
 const updateDonationStatus = catchAsync(async (req, res, next) => {
     const { status } = req.body;
-    const validStatuses = ['pickedUp', 'delivered'];
+    const validStatuses = ['preparing', 'readyForPickup', 'outForDelivery', 'delivered'];
     if (!validStatuses.includes(status)) return next(new AppError('Invalid status', 400));
 
     const donation = await Donation.findByIdAndUpdate(

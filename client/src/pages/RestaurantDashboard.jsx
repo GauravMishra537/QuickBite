@@ -135,6 +135,14 @@ const RestaurantDashboard = () => {
     } catch { toast.error('Failed'); }
   };
 
+  const handleDonationStatus = async (id, status) => {
+    try {
+      await api.patch(`/donations/${id}/status`, { status });
+      setDonations((prev) => prev.map((d) => d._id === id ? { ...d, status } : d));
+      toast.success(`Donation ${status}`);
+    } catch { toast.error('Status update failed'); }
+  };
+
   if (loading) return (
     <div className="container dashboard-page">
       <div className="stats-grid">{[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 100, borderRadius: 16 }} />)}</div>
@@ -356,22 +364,42 @@ const RestaurantDashboard = () => {
               <div style={{ fontSize: '3rem' }}>💚</div><p>No donations listed yet. Help reduce food waste!</p>
             </div>
           ) : (
-            donations.map((d) => (
-              <div key={d._id} className="menu-manage-card">
-                <div className="menu-manage-info">
-                  <div className="menu-manage-name">🍱 {d.items?.map((i) => i.name).join(', ') || 'Food items'}</div>
-                  <div className="menu-manage-meta">
-                    <span>🍽️ {d.totalServings} servings</span>
-                    <span>Expires: {new Date(d.expiresAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                    {d.ngo && <span>NGO: {d.ngo.name}</span>}
+            donations.map((d) => {
+              const donationActions = {
+                requested: [{ label: '✅ Accept', action: () => handleAcceptDonation(d._id), variant: 'btn-primary' }],
+                accepted:  [{ label: '🍳 Preparing', action: () => handleDonationStatus(d._id, 'preparing'), variant: 'btn-secondary' }],
+                preparing: [{ label: '📦 Ready for Pickup', action: () => handleDonationStatus(d._id, 'readyForPickup'), variant: 'btn-primary' }],
+                readyForPickup: [{ label: '🚚 Out for Delivery', action: () => handleDonationStatus(d._id, 'outForDelivery'), variant: 'btn-primary' }],
+                outForDelivery: [{ label: '🎉 Delivered', action: () => handleDonationStatus(d._id, 'delivered'), variant: 'btn-primary' }],
+              };
+              const actions = donationActions[d.status] || [];
+              const isDone = d.status === 'delivered' || d.status === 'expired';
+              const statusColorMap = {
+                available: '#3498db', requested: '#e67e22', accepted: '#2ecc71',
+                preparing: '#9b59b6', readyForPickup: '#f39c12', outForDelivery: '#e74c3c', delivered: '#27ae60', expired: '#7f8c8d',
+              };
+              return (
+                <div key={d._id} className="menu-manage-card">
+                  <div className="menu-manage-info">
+                    <div className="menu-manage-name">🍱 {d.items?.map((i) => i.name).join(', ') || 'Food items'}</div>
+                    <div className="menu-manage-meta">
+                      <span>🍽️ {d.totalServings} servings</span>
+                      <span>Expires: {new Date(d.expiresAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      {d.ngo && <span>NGO: {d.ngo.name}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 700, background: `${statusColorMap[d.status] || '#666'}22`, color: statusColorMap[d.status] || '#666', border: `1px solid ${statusColorMap[d.status] || '#666'}44` }}>
+                      {d.status}
+                    </span>
+                    {actions.map((act, idx) => (
+                      <button key={idx} className={`btn ${act.variant} btn-sm`} onClick={act.action} style={{ fontSize: '0.75rem' }}>{act.label}</button>
+                    ))}
+                    {isDone && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{d.status === 'delivered' ? '✅ Complete' : '⏰ Expired'}</span>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                  <span className={`status-badge ${d.status === 'available' ? 'ready' : d.status === 'requested' ? 'pending' : 'confirmed'}`}>{d.status}</span>
-                  {d.status === 'requested' && <button className="btn btn-primary btn-sm" onClick={() => handleAcceptDonation(d._id)}>Accept</button>}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </>
       )}
