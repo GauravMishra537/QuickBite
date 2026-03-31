@@ -12,6 +12,7 @@ const {
     acceptDonation,
     updateDonationStatus,
     getNGODonations,
+    getDonationById,
 } = require('../controllers/donationController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -29,5 +30,6 @@ router.get('/ngo/received', protect, authorize('ngo'), getNGODonations);
 router.patch('/:id/request', protect, authorize('ngo'), requestDonation);
 router.patch('/:id/accept', protect, authorize('restaurant'), acceptDonation);
 router.patch('/:id/status', protect, authorize('restaurant', 'ngo', 'delivery'), updateDonationStatus);
+router.get('/:id', protect, getDonationById);
 
 module.exports = router;

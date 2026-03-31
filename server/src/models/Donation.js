@@ -37,6 +37,12 @@ const donationSchema = new mongoose.Schema(
             ref: 'User',
         },
         notes: { type: String, maxlength: 300 },
+        deliveryAddress: {
+            street: { type: String },
+            city: { type: String },
+            state: { type: String },
+            zipCode: { type: String },
+        },
         expiresAt: {
             type: Date,
             required: [true, 'Please provide expiry time for surplus food'],

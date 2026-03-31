@@ -25,8 +25,8 @@ const donationService = {
   // Get NGO's received donations
   getNGODonations: () => api.get('/donations/ngo/received'),
 
-  // Request a donation (NGO)
-  requestDonation: (donationId) => api.patch(`/donations/${donationId}/request`),
+  // Request a donation (NGO) — with delivery address
+  requestDonation: (donationId, deliveryAddress) => api.patch(`/donations/${donationId}/request`, { deliveryAddress }),
 
   // Accept a donation request (restaurant)
   acceptDonation: (donationId) => api.patch(`/donations/${donationId}/accept`),

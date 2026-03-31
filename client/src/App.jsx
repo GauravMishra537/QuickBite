@@ -17,6 +17,7 @@ import TableBooking from './pages/TableBooking';
 import Subscriptions from './pages/Subscriptions';
 import SurplusFood from './pages/SurplusFood';
 import OrderTracking from './pages/OrderTracking';
+import DonationTracking from './pages/DonationTracking';
 import MyOrders from './pages/MyOrders';
 import { AboutPage, CareersPage, PartnerPage, BlogPage, ContactPage, HelpPage, FAQPage, SafetyPage, TermsPage, PrivacyPage } from './pages/FooterPages';
 
@@ -58,6 +59,7 @@ function App() {
           <Route path="checkout" element={<ProtectedRoute roles={['customer']}><Checkout /></ProtectedRoute>} />
           <Route path="orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
           <Route path="track/:id" element={<ProtectedRoute><OrderTracking /></ProtectedRoute>} />
+          <Route path="track-donation/:id" element={<ProtectedRoute><DonationTracking /></ProtectedRoute>} />
           <Route path="bookings" element={<ProtectedRoute><TableBooking /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />

@@ -132,6 +132,9 @@ const requestDonation = catchAsync(async (req, res, next) => {
 
     donation.ngo = ngo._id;
     donation.status = 'requested';
+    if (req.body.deliveryAddress) {
+        donation.deliveryAddress = req.body.deliveryAddress;
+    }
     await donation.save();
 
     ApiResponse.success(res, { donation }, 'Donation requested successfully');
@@ -200,6 +203,20 @@ const getNGODonations = catchAsync(async (req, res, next) => {
     ApiResponse.success(res, { donations }, 'NGO donations retrieved');
 });
 
+/**
+ * @desc    Get single donation by ID
+ * @route   GET /api/donations/:id
+ * @access  Private
+ */
+const getDonationById = catchAsync(async (req, res, next) => {
+    const donation = await Donation.findById(req.params.id)
+        .populate('restaurant', 'name address phone location images')
+        .populate('ngo', 'name address phone contactPerson')
+        .lean();
+    if (!donation) return next(new AppError('Donation not found', 404));
+    ApiResponse.success(res, { donation }, 'Donation retrieved');
+});
+
 module.exports = {
     registerNGO,
     getAllNGOs,
@@ -212,4 +229,5 @@ module.exports = {
     acceptDonation,
     updateDonationStatus,
     getNGODonations,
+    getDonationById,
 };

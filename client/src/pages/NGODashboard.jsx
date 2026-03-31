@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiEdit2, FiSave } from 'react-icons/fi';
 import donationService from '../services/donationService';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +17,7 @@ const TABS = [
 
 const NGODashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [ngo, setNgo] = useState(null);
   const [available, setAvailable] = useState([]);
   const [received, setReceived] = useState([]);
@@ -28,6 +30,11 @@ const NGODashboard = () => {
     name: '', description: '', registrationNumber: '', contactPerson: '', phone: '',
     address: { street: '', city: '', state: '', zipCode: '' }, areasServed: '',
   });
+
+  // Address modal state
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [selectedDonationId, setSelectedDonationId] = useState(null);
+  const [deliveryAddress, setDeliveryAddress] = useState({ street: '', city: '', state: '', zipCode: '' });
 
   useEffect(() => { fetchData(); }, []);
 
@@ -50,11 +57,33 @@ const NGODashboard = () => {
     finally { setLoading(false); }
   };
 
-  const handleRequestDonation = async (donationId) => {
+  // Open address modal instead of requesting directly
+  const openAddressModal = (donationId) => {
+    setSelectedDonationId(donationId);
+    if (ngo?.address) {
+      setDeliveryAddress({
+        street: ngo.address.street || '',
+        city: ngo.address.city || '',
+        state: ngo.address.state || '',
+        zipCode: ngo.address.zipCode || '',
+      });
+    }
+    setShowAddressModal(true);
+  };
+
+  const handleRequestDonation = async () => {
+    if (!selectedDonationId) return;
+    if (!deliveryAddress.street || !deliveryAddress.city) {
+      toast.error('Please enter at least street and city');
+      return;
+    }
     try {
-      await donationService.requestDonation(donationId);
-      setAvailable((prev) => prev.filter((d) => d._id !== donationId));
+      await donationService.requestDonation(selectedDonationId, deliveryAddress);
+      setAvailable((prev) => prev.filter((d) => d._id !== selectedDonationId));
+      setShowAddressModal(false);
+      setSelectedDonationId(null);
       toast.success('Donation requested! The restaurant will confirm. 🤝');
+      fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Request failed'); }
   };
 
@@ -125,6 +154,7 @@ const NGODashboard = () => {
   received.forEach((d) => { statusBreakdown[d.status] = (statusBreakdown[d.status] || 0) + 1; });
 
   return (
+    <>
     <div className="container dashboard-page">
       <div className="dash-header">
         <div>
@@ -154,7 +184,7 @@ const NGODashboard = () => {
                 <div key={d._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
                   <span style={{ fontWeight: 600 }}>{d.restaurant?.name || 'Restaurant'}</span>
                   <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{d.totalServings} servings</span>
-                  <button className="btn btn-primary btn-sm" onClick={() => handleRequestDonation(d._id)}>Request</button>
+                  <button className="btn btn-primary btn-sm" onClick={() => openAddressModal(d._id)}>Request</button>
                 </div>
               ))}
               {available.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No donations available right now</p>}
@@ -202,7 +232,7 @@ const NGODashboard = () => {
               <p style={{ fontSize: '0.875rem', marginTop: 4 }}>Check back later — restaurants list surplus food throughout the day</p>
             </div>
           ) : (
-            available.map((d) => <DonationCard key={d._id} donation={d} onRequest={handleRequestDonation} />)
+            available.map((d) => <DonationCard key={d._id} donation={d} onRequest={openAddressModal} />)
           )}
         </>
       )}
@@ -296,6 +326,13 @@ const NGODashboard = () => {
                       <p style={{ color: 'var(--text-secondary)' }}>Listed: {new Date(d.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                     </div>
                   </div>
+
+                  {/* Track on Map Button */}
+                  <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 'var(--space-md)' }}>
+                    <button className="btn btn-primary btn-sm" onClick={() => navigate(`/track-donation/${d._id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      🗺️ Track Donation on Map
+                    </button>
+                  </div>
                 </div>
               );
             })
@@ -352,6 +389,41 @@ const NGODashboard = () => {
         </div>
       )}
     </div>
+
+      {/* ── ADDRESS ENTRY MODAL ── */}
+      {showAddressModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-lg)' }} onClick={() => setShowAddressModal(false)}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-xl)', maxWidth: 500, width: '100%', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>📍 Enter Delivery Address</h3>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: 'var(--space-lg)' }}>Where should this donation be delivered? This address will be shown on the tracking map.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-md)' }}>
+              <div className="form-group">
+                <label className="form-label">Street Address *</label>
+                <input className="form-input" value={deliveryAddress.street} onChange={(e) => setDeliveryAddress({...deliveryAddress, street: e.target.value})} placeholder="123, Main Road, Block A" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                <div className="form-group">
+                  <label className="form-label">City *</label>
+                  <input className="form-input" value={deliveryAddress.city} onChange={(e) => setDeliveryAddress({...deliveryAddress, city: e.target.value})} placeholder="New Delhi" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">State</label>
+                  <input className="form-input" value={deliveryAddress.state} onChange={(e) => setDeliveryAddress({...deliveryAddress, state: e.target.value})} placeholder="Delhi" />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Zip Code</label>
+                <input className="form-input" value={deliveryAddress.zipCode} onChange={(e) => setDeliveryAddress({...deliveryAddress, zipCode: e.target.value})} placeholder="110001" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}>
+              <button className="btn btn-primary" onClick={handleRequestDonation}>🤝 Request Donation</button>
+              <button className="btn btn-ghost" onClick={() => setShowAddressModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
