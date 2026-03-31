@@ -101,7 +101,7 @@ const CloudKitchenDashboard = () => {
   );
 
   const totalRevenue = orders.filter((o) => o.status === 'delivered').reduce((s, o) => s + (o.totalAmount || 0), 0);
-  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const pendingOrders = orders.filter((o) => o.status === 'placed').length;
   const statusBreakdown = {};
   orders.forEach((o) => { statusBreakdown[o.status] = (statusBreakdown[o.status] || 0) + 1; });
   const categoryStats = {};

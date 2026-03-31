@@ -142,7 +142,7 @@ const RestaurantDashboard = () => {
     </div>
   );
 
-  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const pendingOrders = orders.filter((o) => o.status === 'placed').length;
   const totalRevenue = orders.filter((o) => o.status === 'delivered').reduce((s, o) => s + (o.totalAmount || 0), 0);
   const confirmedBookings = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending').length;
 

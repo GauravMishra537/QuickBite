@@ -87,7 +87,7 @@ const GroceryDashboard = () => {
   );
 
   const totalRevenue = orders.filter((o) => o.status === 'delivered').reduce((s, o) => s + (o.totalAmount || 0), 0);
-  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const pendingOrders = orders.filter((o) => o.status === 'placed').length;
   const lowStockProducts = products.filter((p) => (p.stock || 0) < 10);
   const outOfStockProducts = products.filter((p) => (p.stock || 0) === 0);
   const statusBreakdown = {};
