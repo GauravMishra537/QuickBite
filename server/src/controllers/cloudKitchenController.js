@@ -96,17 +96,11 @@ const getCloudKitchen = catchAsync(async (req, res, next) => {
  * @access  Private (cloudkitchen role)
  */
 const getMyKitchen = catchAsync(async (req, res, next) => {
-    let kitchen = await CloudKitchen.findOne({ owner: req.user._id })
+    const kitchen = await CloudKitchen.findOne({ owner: req.user._id })
         .populate('menuItems');
 
     if (!kitchen) {
-        kitchen = await CloudKitchen.create({
-            owner: req.user._id,
-            name: `${req.user.name}'s Cloud Kitchen`,
-            description: 'A new cloud kitchen on QuickBite',
-            cuisine: ['Multi-Cuisine'],
-            address: { street: 'Address pending', city: 'City', state: 'State', zipCode: '000000' },
-        });
+        return next(new AppError('You have not registered a cloud kitchen yet.', 404));
     }
 
     ApiResponse.success(res, { kitchen }, 'Your cloud kitchen retrieved');
