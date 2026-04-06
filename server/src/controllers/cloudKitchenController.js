@@ -15,10 +15,12 @@ const createCloudKitchen = catchAsync(async (req, res, next) => {
         return next(new AppError('You already have a cloud kitchen registered.', 400));
     }
 
-    const kitchen = await CloudKitchen.create({
-        ...req.body,
-        owner: req.user._id,
-    });
+    const data = { ...req.body, owner: req.user._id };
+    if (!data.images || data.images.length === 0) {
+        data.images = ['https://images.unsplash.com/photo-1556909114-44e3e70034e2?w=800'];
+    }
+
+    const kitchen = await CloudKitchen.create(data);
 
     ApiResponse.created(res, { kitchen }, 'Cloud kitchen created successfully');
 });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiUser, FiMail, FiLock, FiPhone, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiPhone, FiEye, FiEyeOff, FiCamera } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import './Auth.css';
 
@@ -17,7 +17,7 @@ const ROLES = [
 const Register = () => {
   const { register, loading } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '', role: 'customer' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '', role: 'customer', avatar: '' });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
 
@@ -46,6 +46,7 @@ const Register = () => {
       password: form.password,
       phone: form.phone,
       role: form.role,
+      ...(form.avatar && { avatar: form.avatar }),
     });
 
     if (result.success) {
@@ -135,6 +136,18 @@ const Register = () => {
               </div>
             </div>
           </div>
+
+          {/* Photo URL for business roles */}
+          {['restaurant', 'cloudkitchen', 'grocery', 'delivery'].includes(form.role) && (
+            <div className="input-group">
+              <label>Profile Photo / Logo URL</label>
+              <div className="auth-input-icon">
+                <input type="url" className="input" placeholder="https://example.com/photo.jpg" value={form.avatar} onChange={(e) => onChange('avatar', e.target.value)} />
+                <FiCamera className="icon" />
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>Paste a URL to your profile photo or business logo</span>
+            </div>
+          )}
 
           <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
             {loading ? 'Creating…' : 'Create Account'}

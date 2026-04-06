@@ -15,7 +15,12 @@ const createGroceryShop = catchAsync(async (req, res, next) => {
         return next(new AppError('You already have a grocery shop registered.', 400));
     }
 
-    const shop = await GroceryShop.create({ ...req.body, owner: req.user._id });
+    const data = { ...req.body, owner: req.user._id };
+    if (!data.images || data.images.length === 0) {
+        data.images = ['https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800'];
+    }
+
+    const shop = await GroceryShop.create(data);
     ApiResponse.created(res, { shop }, 'Grocery shop created successfully');
 });
 

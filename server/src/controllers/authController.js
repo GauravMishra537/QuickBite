@@ -9,7 +9,7 @@ const generateToken = require('../utils/generateToken');
  * @access  Public
  */
 const register = catchAsync(async (req, res, next) => {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone, role, avatar } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -29,6 +29,7 @@ const register = catchAsync(async (req, res, next) => {
         password,
         phone,
         role: role || 'customer',
+        ...(avatar && { avatar }),
     });
 
     generateToken(user, 201, res);

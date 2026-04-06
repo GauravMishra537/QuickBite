@@ -30,6 +30,11 @@ const RestaurantDashboard = () => {
   const [editItem, setEditItem] = useState(null);
   const [showDonationForm, setShowDonationForm] = useState(false);
   const [donationForm, setDonationForm] = useState({ items: [{ name: '', quantity: '', unit: 'servings' }], notes: '', expiresAt: '' });
+  const [regForm, setRegForm] = useState({
+    name: '', description: '', cuisine: '', phone: '', email: '',
+    address: { street: '', city: '', state: '', zipCode: '' },
+    images: '',
+  });
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -150,6 +155,51 @@ const RestaurantDashboard = () => {
     </div>
   );
 
+  /* ── REGISTRATION FORM (if no restaurant exists yet) ── */
+  if (!restaurant) {
+    const handleRegister = async (e) => {
+      e.preventDefault();
+      try {
+        const payload = {
+          ...regForm,
+          cuisine: regForm.cuisine.split(',').map((c) => c.trim()).filter(Boolean),
+          images: regForm.images ? [regForm.images] : [],
+        };
+        await api.post('/restaurants', payload);
+        toast.success('Restaurant registered! 🎉 It will now appear on listing pages.');
+        fetchAll();
+      } catch (err) { toast.error(err.response?.data?.message || err.message || 'Registration failed'); }
+    };
+    return (
+      <div className="container dashboard-page" style={{ maxWidth: 700, margin: '0 auto', paddingTop: 'var(--space-2xl)' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-xl)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
+            <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}>🍽️</div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800 }}>Register Your Restaurant</h2>
+            <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>Fill in the details below to get listed on QuickBite</p>
+          </div>
+          <form onSubmit={handleRegister} style={{ display: 'grid', gap: 'var(--space-md)' }}>
+            <div className="form-group"><label className="form-label">Restaurant Name *</label><input className="form-input" required value={regForm.name} onChange={(e) => setRegForm({...regForm, name: e.target.value})} placeholder="Spice Garden" /></div>
+            <div className="form-group"><label className="form-label">Description *</label><textarea className="form-input" required rows={2} value={regForm.description} onChange={(e) => setRegForm({...regForm, description: e.target.value})} placeholder="Tell customers about your restaurant" /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+              <div className="form-group"><label className="form-label">Cuisines * (comma separated)</label><input className="form-input" required value={regForm.cuisine} onChange={(e) => setRegForm({...regForm, cuisine: e.target.value})} placeholder="North Indian, Mughlai" /></div>
+              <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={regForm.phone} onChange={(e) => setRegForm({...regForm, phone: e.target.value})} placeholder="+91 98765 43210" /></div>
+            </div>
+            <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" value={regForm.email} onChange={(e) => setRegForm({...regForm, email: e.target.value})} placeholder="info@restaurant.com" /></div>
+            <div className="form-group"><label className="form-label">Restaurant Photo URL</label><input className="form-input" type="url" value={regForm.images} onChange={(e) => setRegForm({...regForm, images: e.target.value})} placeholder="https://example.com/photo.jpg" /><span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>This photo will appear on the listing page</span></div>
+            <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginTop: 'var(--space-sm)' }}>📍 Address</h4>
+            <div className="form-group"><label className="form-label">Street *</label><input className="form-input" required value={regForm.address.street} onChange={(e) => setRegForm({...regForm, address: {...regForm.address, street: e.target.value}})} placeholder="12, Connaught Place" /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-md)' }}>
+              <div className="form-group"><label className="form-label">City *</label><input className="form-input" required value={regForm.address.city} onChange={(e) => setRegForm({...regForm, address: {...regForm.address, city: e.target.value}})} placeholder="New Delhi" /></div>
+              <div className="form-group"><label className="form-label">State *</label><input className="form-input" required value={regForm.address.state} onChange={(e) => setRegForm({...regForm, address: {...regForm.address, state: e.target.value}})} placeholder="Delhi" /></div>
+              <div className="form-group"><label className="form-label">Zip Code *</label><input className="form-input" required value={regForm.address.zipCode} onChange={(e) => setRegForm({...regForm, address: {...regForm.address, zipCode: e.target.value}})} placeholder="110001" /></div>
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ marginTop: 'var(--space-md)' }}>🚀 Register Restaurant</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
   const pendingOrders = orders.filter((o) => o.status === 'placed').length;
   const totalRevenue = orders.filter((o) => o.status === 'delivered').reduce((s, o) => s + (o.totalAmount || 0), 0);
   const confirmedBookings = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending').length;

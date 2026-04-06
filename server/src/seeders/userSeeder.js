@@ -1,3 +1,5 @@
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const User = require('../models/User');
@@ -161,6 +163,45 @@ const dummyUsers = [
             },
         ],
     },
+    {
+        name: 'Pooja Sharma',
+        email: 'pooja.sharma@gmail.com',
+        password: 'Password@123',
+        phone: '+91 9876543230',
+        role: 'restaurant',
+        isVerified: true,
+        addresses: [
+            {
+                label: 'Restaurant',
+                street: '10, Park Street, Middleton Row',
+                city: 'Kolkata',
+                state: 'West Bengal',
+                zipCode: '700016',
+                country: 'India',
+                isDefault: true,
+            },
+        ],
+    },
+    {
+        name: 'Arjun Mehta',
+        email: 'arjun.mehta@gmail.com',
+        password: 'Password@123',
+        phone: '+91 9876543231',
+        role: 'restaurant',
+        isVerified: true,
+        addresses: [
+            {
+                label: 'Restaurant',
+                street: '55, Cathedral Road, Gopalapuram',
+                city: 'Chennai',
+                state: 'Tamil Nadu',
+                zipCode: '600086',
+                country: 'India',
+                isDefault: true,
+            },
+        ],
+    },
+
 
     // ---- CLOUD KITCHEN OWNERS (2) ----
     {

@@ -24,8 +24,8 @@ const seedRestaurantsAndKitchens = async () => {
         const restaurantOwners = await User.find({ role: 'restaurant' });
         const kitchenOwners = await User.find({ role: 'cloudkitchen' });
 
-        if (restaurantOwners.length < 3) {
-            console.error('❌ Need at least 3 restaurant owners. Run userSeeder first.');
+        if (restaurantOwners.length < 5) {
+            console.error('❌ Need at least 5 restaurant owners. Run userSeeder first.');
             process.exit(1);
         }
         if (kitchenOwners.length < 2) {
@@ -34,7 +34,7 @@ const seedRestaurantsAndKitchens = async () => {
         }
 
         // =============================
-        // RESTAURANTS (6)
+        // RESTAURANTS (8)
         // =============================
         const restaurants = await Restaurant.create([
             {
@@ -201,6 +201,61 @@ const seedRestaurantsAndKitchens = async () => {
                 isFeatured: true,
                 isVerified: true,
                 tags: ['dhaba', 'non-veg', 'family', 'Punjabi'],
+            },
+            {
+                owner: restaurantOwners[3]._id,
+                name: 'Kolkata Kitchen',
+                description: 'Authentic Bengali cuisine — from mishti doi to kosha mangsho. Relive the flavors of Kolkata with our lovingly crafted recipes.',
+                cuisine: ['Bengali', 'Indian', 'Seafood'],
+                address: { street: '10, Park Street, Middleton Row', city: 'Kolkata', state: 'West Bengal', zipCode: '700016' },
+                location: { type: 'Point', coordinates: [88.3520, 22.5515] },
+                images: ['https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800'],
+                phone: '+91 33 2229 5678',
+                email: 'info@kolkatakitchen.in',
+                rating: 4.5,
+                totalReviews: 378,
+                isOpen: true,
+                openingHours: { open: '10:00', close: '23:00' },
+                deliveryTime: { min: 30, max: 45 },
+                deliveryFee: 35,
+                minOrderAmount: 149,
+                tables: [
+                    { tableNumber: 1, capacity: 2, isAvailable: true, location: 'indoor' },
+                    { tableNumber: 2, capacity: 4, isAvailable: true, location: 'indoor' },
+                    { tableNumber: 3, capacity: 4, isAvailable: true, location: 'outdoor' },
+                    { tableNumber: 4, capacity: 6, isAvailable: true, location: 'rooftop' },
+                ],
+                isFeatured: true,
+                isVerified: true,
+                tags: ['bengali', 'seafood', 'fine-dining', 'sweets'],
+            },
+            {
+                owner: restaurantOwners[4]._id,
+                name: 'The Marina',
+                description: 'Chettinad and coastal Tamil cuisine with a modern presentation. Known for our seafood platters, dosa varieties, and filter coffee.',
+                cuisine: ['South Indian', 'Chettinad', 'Coastal'],
+                address: { street: '55, Cathedral Road, Gopalapuram', city: 'Chennai', state: 'Tamil Nadu', zipCode: '600086' },
+                location: { type: 'Point', coordinates: [80.2507, 13.0475] },
+                images: ['https://images.unsplash.com/photo-1600891964092-4316c288032e?w=800'],
+                phone: '+91 44 2811 4567',
+                email: 'info@themarina.in',
+                rating: 4.4,
+                totalReviews: 295,
+                isOpen: true,
+                openingHours: { open: '07:00', close: '22:30' },
+                deliveryTime: { min: 25, max: 40 },
+                deliveryFee: 30,
+                minOrderAmount: 129,
+                tables: [
+                    { tableNumber: 1, capacity: 2, isAvailable: true, location: 'indoor' },
+                    { tableNumber: 2, capacity: 2, isAvailable: true, location: 'indoor' },
+                    { tableNumber: 3, capacity: 4, isAvailable: true, location: 'outdoor' },
+                    { tableNumber: 4, capacity: 6, isAvailable: true, location: 'private' },
+                    { tableNumber: 5, capacity: 8, isAvailable: true, location: 'private' },
+                ],
+                isFeatured: true,
+                isVerified: true,
+                tags: ['chettinad', 'seafood', 'dosa', 'filter-coffee'],
             },
         ]);
 
@@ -447,6 +502,32 @@ const seedRestaurantsAndKitchens = async () => {
             ...rotiRiceItems,
             ...pizzaPlanetItems,
         ];
+
+        // --- Kolkata Kitchen Menu ---
+        const kolkataKitchenItems = [
+            { name: 'Kosha Mangsho', description: 'Spicy slow-cooked Bengali mutton curry with aromatic spices', price: 449, category: 'Main Course', isVeg: false, preparationTime: 35, spiceLevel: 'Spicy', isBestseller: true, rating: 4.8, totalOrders: 1890, restaurant: restaurants[6]._id },
+            { name: 'Chingri Malai Curry', description: 'Prawns cooked in rich coconut cream with Bengali five-spice', price: 499, category: 'Main Course', isVeg: false, preparationTime: 25, spiceLevel: 'Medium', isBestseller: true, rating: 4.7, totalOrders: 1450, restaurant: restaurants[6]._id },
+            { name: 'Mishti Doi', description: 'Traditional Bengali sweet yogurt set in earthen pots', price: 89, category: 'Desserts', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', isBestseller: true, rating: 4.9, totalOrders: 2340, restaurant: restaurants[6]._id },
+            { name: 'Luchi & Aloo Dum', description: 'Deep-fried fluffy bread served with spiced potato curry', price: 159, category: 'Breads', isVeg: true, preparationTime: 15, spiceLevel: 'Medium', rating: 4.5, totalOrders: 980, restaurant: restaurants[6]._id },
+            { name: 'Fish Fry (Bhetki)', description: 'Crispy fried Bhetki fish coated in Bengali spices, a Kolkata classic', price: 329, category: 'Starters', isVeg: false, preparationTime: 20, spiceLevel: 'Medium', isBestseller: true, rating: 4.7, totalOrders: 1670, restaurant: restaurants[6]._id },
+            { name: 'Mutton Biryani (Kolkata)', description: 'Kolkata-style biryani with potato, egg, and succulent mutton pieces', price: 369, category: 'Rice & Biryani', isVeg: false, preparationTime: 30, spiceLevel: 'Medium', rating: 4.6, totalOrders: 2100, restaurant: restaurants[6]._id },
+            { name: 'Rasgulla (4 pcs)', description: 'Spongy cottage cheese balls soaked in light sugar syrup', price: 119, category: 'Desserts', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', rating: 4.4, totalOrders: 1200, restaurant: restaurants[6]._id },
+            { name: 'Bengali Fish Curry', description: 'Rohu fish in mustard-turmeric gravy, the quintessential Bengali dish', price: 349, category: 'Main Course', isVeg: false, preparationTime: 25, spiceLevel: 'Medium', rating: 4.6, totalOrders: 1560, restaurant: restaurants[6]._id },
+        ];
+
+        // --- The Marina Menu ---
+        const theMarinaItems = [
+            { name: 'Chettinad Chicken', description: 'Fiery chicken curry with freshly ground Chettinad masala', price: 389, category: 'Main Course', isVeg: false, preparationTime: 30, spiceLevel: 'Spicy', isBestseller: true, rating: 4.7, totalOrders: 1780, restaurant: restaurants[7]._id },
+            { name: 'Prawn Masala Dosa', description: 'Crispy dosa filled with spiced prawn masala', price: 229, category: 'Starters', isVeg: false, preparationTime: 15, spiceLevel: 'Medium', isBestseller: true, rating: 4.6, totalOrders: 1340, restaurant: restaurants[7]._id },
+            { name: 'Appam with Stew', description: 'Soft lace-edged appams served with creamy vegetable stew', price: 179, category: 'Breads', isVeg: true, preparationTime: 15, spiceLevel: 'Mild', rating: 4.5, totalOrders: 980, restaurant: restaurants[7]._id },
+            { name: 'Filter Coffee', description: 'Authentic South Indian filter coffee brewed with chicory', price: 69, category: 'Beverages', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', isBestseller: true, rating: 4.8, totalOrders: 3400, restaurant: restaurants[7]._id },
+            { name: 'Meen Kulambu', description: 'Tangy tamarind-based fish curry, a Tamil Nadu classic', price: 419, category: 'Main Course', isVeg: false, preparationTime: 25, spiceLevel: 'Spicy', rating: 4.6, totalOrders: 890, restaurant: restaurants[7]._id },
+            { name: 'Kothu Parotta', description: 'Shredded parotta tossed with egg, vegetables, and spices', price: 189, category: 'Main Course', isVeg: false, preparationTime: 15, spiceLevel: 'Spicy', rating: 4.4, totalOrders: 1120, restaurant: restaurants[7]._id },
+            { name: 'Payasam', description: 'Traditional vermicelli kheer with cashews, raisins, and cardamom', price: 99, category: 'Desserts', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', rating: 4.3, totalOrders: 670, restaurant: restaurants[7]._id },
+            { name: 'Ghee Roast Dosa', description: 'Extra crispy dosa roasted in pure ghee with potato masala', price: 149, category: 'Starters', isVeg: true, preparationTime: 12, spiceLevel: 'Mild', isBestseller: true, rating: 4.7, totalOrders: 2560, restaurant: restaurants[7]._id },
+        ];
+
+        allMenuItems.push(...kolkataKitchenItems, ...theMarinaItems);
 
         const createdItems = await MenuItem.create(allMenuItems);
         console.log(`✅ ${createdItems.length} menu items seeded`);

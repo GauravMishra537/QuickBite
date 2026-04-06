@@ -16,10 +16,12 @@ const createRestaurant = catchAsync(async (req, res, next) => {
         return next(new AppError('You already have a restaurant registered.', 400));
     }
 
-    const restaurant = await Restaurant.create({
-        ...req.body,
-        owner: req.user._id,
-    });
+    const data = { ...req.body, owner: req.user._id };
+    if (!data.images || data.images.length === 0) {
+        data.images = ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'];
+    }
+
+    const restaurant = await Restaurant.create(data);
 
     ApiResponse.created(res, { restaurant }, 'Restaurant created successfully');
 });
