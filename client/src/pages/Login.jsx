@@ -93,8 +93,8 @@ const Login = () => {
             { label: 'Restaurant', email: 'rajesh.kapoor@gmail.com' },
             { label: 'Cloud Kitchen', email: 'neha.verma@gmail.com' },
             { label: 'Grocery', email: 'kavitha.nair@gmail.com' },
-            { label: 'Delivery', email: 'delivery@quickbite.com' },
-            { label: 'NGO', email: 'ngo@quickbite.com' },
+            { label: 'Delivery', email: 'ravi.kumar@gmail.com' },
+            { label: 'NGO', email: 'sunita.devi@gmail.com' },
             { label: 'Admin', email: 'admin@quickbite.com' },
           ].map((demo) => (
             <button
