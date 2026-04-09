@@ -3,7 +3,7 @@ const Order = require('../models/Order');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const ApiResponse = require('../utils/apiResponse');
-const { emitOrderUpdate } = require('../config/socket');
+const { emitOrderUpdate, emitToUser } = require('../config/socket');
 
 /**
  * @desc    Register as delivery partner
@@ -19,13 +19,13 @@ const registerPartner = catchAsync(async (req, res, next) => {
 });
 
 /**
- * @desc    Get my delivery partner profile
+ * @desc    Get my delivery partner profile (returns 404 if not registered)
  * @route   GET /api/deliveries/profile
  * @access  Private (delivery role)
  */
 const getMyProfile = catchAsync(async (req, res, next) => {
     const partner = await DeliveryPartner.findOne({ user: req.user._id }).populate('currentOrder');
-    if (!partner) return next(new AppError('Delivery partner profile not found', 404));
+    if (!partner) return next(new AppError('You have not registered as a delivery partner yet.', 404));
     ApiResponse.success(res, { partner }, 'Profile retrieved');
 });
 
@@ -87,9 +87,9 @@ const toggleAvailability = catchAsync(async (req, res, next) => {
  */
 const getAvailableDeliveries = catchAsync(async (req, res, next) => {
     const orders = await Order.find({ status: 'ready', deliveryPartner: null })
-        .populate('restaurant', 'name address phone')
-        .populate('cloudKitchen', 'name address phone')
-        .populate('groceryShop', 'name address phone')
+        .populate('restaurant', 'name address phone images')
+        .populate('cloudKitchen', 'name address phone images')
+        .populate('groceryShop', 'name address phone images')
         .populate('user', 'name phone')
         .sort({ createdAt: -1 })
         .limit(20)
@@ -108,13 +108,16 @@ const acceptDelivery = catchAsync(async (req, res, next) => {
     if (!partner) return next(new AppError('Profile not found', 404));
     if (partner.isOnDelivery) return next(new AppError('You are already on a delivery', 400));
 
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findById(req.params.orderId)
+        .populate('restaurant', 'name address phone owner')
+        .populate('cloudKitchen', 'name address phone owner')
+        .populate('groceryShop', 'name address phone owner');
     if (!order) return next(new AppError('Order not found', 404));
     if (order.status !== 'ready') return next(new AppError('Order is not ready for delivery', 400));
     if (order.deliveryPartner) return next(new AppError('This delivery is already assigned', 400));
 
     order.deliveryPartner = req.user._id;
-    order.status = 'outForDelivery';
+    order.status = 'pickedUp';
     await order.save();
 
     partner.isOnDelivery = true;
@@ -122,7 +125,67 @@ const acceptDelivery = catchAsync(async (req, res, next) => {
     partner.currentOrder = order._id;
     await partner.save();
 
-    ApiResponse.success(res, { order }, 'Delivery accepted');
+    // ── Socket: Notify customer and business ──
+    const businessName = order.restaurant?.name || order.cloudKitchen?.name || order.groceryShop?.name || 'Business';
+    const socketData = {
+        orderId: order._id,
+        orderNumber: order._id.toString().slice(-6).toUpperCase(),
+        status: 'pickedUp',
+        deliveryPartner: req.user.name,
+        businessName,
+        message: `${req.user.name} has picked up your order from ${businessName}!`,
+        updatedAt: new Date(),
+    };
+
+    try {
+        emitToUser(order.user.toString(), 'orderStatusChanged', socketData);
+        emitOrderUpdate(order._id.toString(), socketData);
+        // Notify business owner
+        const ownerId = order.restaurant?.owner || order.cloudKitchen?.owner || order.groceryShop?.owner;
+        if (ownerId) emitToUser(ownerId.toString(), 'orderStatusChanged', socketData);
+    } catch (e) { /* socket not ready */ }
+
+    ApiResponse.success(res, { order }, 'Delivery accepted and picked up!');
+});
+
+/**
+ * @desc    Mark order as out for delivery
+ * @route   PATCH /api/deliveries/out-for-delivery/:orderId
+ * @access  Private (delivery role)
+ */
+const markOutForDelivery = catchAsync(async (req, res, next) => {
+    const order = await Order.findById(req.params.orderId)
+        .populate('restaurant', 'name owner')
+        .populate('cloudKitchen', 'name owner')
+        .populate('groceryShop', 'name owner');
+    if (!order) return next(new AppError('Order not found', 404));
+    if (order.deliveryPartner.toString() !== req.user._id.toString()) {
+        return next(new AppError('Not your delivery', 403));
+    }
+    if (order.status !== 'pickedUp') return next(new AppError('Order is not picked up yet', 400));
+
+    order.status = 'outForDelivery';
+    await order.save();
+
+    const businessName = order.restaurant?.name || order.cloudKitchen?.name || order.groceryShop?.name || 'Business';
+    const socketData = {
+        orderId: order._id,
+        orderNumber: order._id.toString().slice(-6).toUpperCase(),
+        status: 'outForDelivery',
+        deliveryPartner: req.user.name,
+        businessName,
+        message: `Your order is on the way! ${req.user.name} is heading to you.`,
+        updatedAt: new Date(),
+    };
+
+    try {
+        emitToUser(order.user.toString(), 'orderStatusChanged', socketData);
+        emitOrderUpdate(order._id.toString(), socketData);
+        const ownerId = order.restaurant?.owner || order.cloudKitchen?.owner || order.groceryShop?.owner;
+        if (ownerId) emitToUser(ownerId.toString(), 'orderStatusChanged', socketData);
+    } catch (e) { /* socket not ready */ }
+
+    ApiResponse.success(res, { order }, 'Order is out for delivery');
 });
 
 /**
@@ -131,24 +194,24 @@ const acceptDelivery = catchAsync(async (req, res, next) => {
  * @access  Private (delivery role)
  */
 const completeDelivery = catchAsync(async (req, res, next) => {
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findById(req.params.orderId)
+        .populate('restaurant', 'name owner')
+        .populate('cloudKitchen', 'name owner')
+        .populate('groceryShop', 'name owner');
     if (!order) return next(new AppError('Order not found', 404));
     if (order.deliveryPartner.toString() !== req.user._id.toString()) {
         return next(new AppError('Not your delivery', 403));
     }
-    if (order.status !== 'outForDelivery') return next(new AppError('Order is not out for delivery', 400));
+    if (!['pickedUp', 'outForDelivery'].includes(order.status)) {
+        return next(new AppError('Order is not out for delivery', 400));
+    }
 
     order.status = 'delivered';
     order.deliveredAt = new Date();
     order.paymentStatus = 'completed';
-    order.statusHistory = order.statusHistory || [];
-    order.statusHistory.push({ status: 'delivered', timestamp: new Date() });
     await order.save();
 
-    // Emit real-time update to customer + business dashboards
-    emitOrderUpdate(order._id.toString(), { status: 'delivered', orderId: order._id });
-
-    const earningsPerDelivery = 50;
+    const earningsPerDelivery = order.deliveryFee || 50;
     const partner = await DeliveryPartner.findOneAndUpdate(
         { user: req.user._id },
         {
@@ -160,7 +223,26 @@ const completeDelivery = catchAsync(async (req, res, next) => {
         { new: true }
     );
 
-    ApiResponse.success(res, { order, partner }, 'Delivery completed');
+    // ── Socket: Notify all parties ──
+    const businessName = order.restaurant?.name || order.cloudKitchen?.name || order.groceryShop?.name || 'Business';
+    const socketData = {
+        orderId: order._id,
+        orderNumber: order._id.toString().slice(-6).toUpperCase(),
+        status: 'delivered',
+        deliveryPartner: req.user.name,
+        businessName,
+        message: `Order delivered successfully! Thank you.`,
+        updatedAt: new Date(),
+    };
+
+    try {
+        emitToUser(order.user.toString(), 'orderStatusChanged', socketData);
+        emitOrderUpdate(order._id.toString(), socketData);
+        const ownerId = order.restaurant?.owner || order.cloudKitchen?.owner || order.groceryShop?.owner;
+        if (ownerId) emitToUser(ownerId.toString(), 'orderStatusChanged', socketData);
+    } catch (e) { /* socket not ready */ }
+
+    ApiResponse.success(res, { order, partner }, 'Delivery completed! 🎉');
 });
 
 /**
@@ -174,7 +256,7 @@ const getActiveDeliveries = catchAsync(async (req, res) => {
     const orders = await Order.find({
         deliveryPartner: req.user._id,
         $or: [
-            { status: 'outForDelivery' },
+            { status: { $in: ['pickedUp', 'outForDelivery'] } },
             { status: 'delivered', deliveredAt: { $gte: todayStart } },
         ],
     })
@@ -264,6 +346,7 @@ module.exports = {
     getAvailableDeliveries,
     getActiveDeliveries,
     acceptDelivery,
+    markOutForDelivery,
     completeDelivery,
     getDeliveryHistory,
     getEarnings,

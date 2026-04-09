@@ -28,6 +28,9 @@ const deliveryService = {
   // Complete a delivery
   completeDelivery: (orderId) => api.patch(`/deliveries/complete/${orderId}`),
 
+  // Mark as out for delivery
+  markOutForDelivery: (orderId) => api.patch(`/deliveries/out-for-delivery/${orderId}`),
+
   // Get delivery history
   getHistory: () => api.get('/deliveries/history'),
 

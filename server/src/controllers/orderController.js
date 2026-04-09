@@ -6,7 +6,7 @@ const DeliveryPartner = require('../models/DeliveryPartner');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const ApiResponse = require('../utils/apiResponse');
-const { emitOrderUpdate } = require('../config/socket');
+const { emitOrderUpdate, emitToUser, notifyDeliveryPartners, notifyBusinessOwner } = require('../config/socket');
 
 /**
  * @desc    Create a new order
@@ -21,21 +21,30 @@ const createOrder = catchAsync(async (req, res, next) => {
     items.forEach((item) => { itemsTotal += item.price * item.quantity; });
 
     let deliveryFee = 0;
+    let businessOwnerId = null;
+    let businessName = '';
+
     if (orderType === 'food') {
         if (restaurant) {
             const rest = await Restaurant.findById(restaurant);
             if (!rest) return next(new AppError('Restaurant not found', 404));
             deliveryFee = rest.deliveryFee || 30;
+            businessOwnerId = rest.owner?.toString();
+            businessName = rest.name;
         } else if (cloudKitchen) {
             const kitchen = await CloudKitchen.findById(cloudKitchen);
             if (!kitchen) return next(new AppError('Cloud kitchen not found', 404));
             deliveryFee = kitchen.deliveryFee || 25;
+            businessOwnerId = kitchen.owner?.toString();
+            businessName = kitchen.name;
         }
     } else if (orderType === 'grocery') {
         if (groceryShop) {
             const shop = await GroceryShop.findById(groceryShop);
             if (!shop) return next(new AppError('Grocery shop not found', 404));
             deliveryFee = shop.deliveryFee || 25;
+            businessOwnerId = shop.owner?.toString();
+            businessName = shop.name;
         }
     }
 
@@ -62,6 +71,22 @@ const createOrder = catchAsync(async (req, res, next) => {
         notes,
         statusHistory: [{ status: 'placed', timestamp: new Date() }],
     });
+
+    // ── Socket: Notify business owner about new order ──
+    if (businessOwnerId) {
+        try {
+            notifyBusinessOwner(businessOwnerId, {
+                orderId: order._id,
+                orderNumber: order._id.toString().slice(-6).toUpperCase(),
+                customerName: req.user.name,
+                itemCount: items.length,
+                totalAmount,
+                businessName,
+                orderType,
+                timestamp: new Date(),
+            });
+        } catch (e) { /* socket not ready */ }
+    }
 
     ApiResponse.created(res, { order }, 'Order placed successfully');
 });
@@ -185,11 +210,15 @@ const updateOrderStatus = catchAsync(async (req, res, next) => {
         placed: ['confirmed', 'cancelled'],
         confirmed: ['preparing', 'cancelled'],
         preparing: ['ready', 'cancelled'],
-        ready: ['outForDelivery'],
+        ready: ['pickedUp', 'outForDelivery'],
+        pickedUp: ['outForDelivery'],
         outForDelivery: ['delivered'],
     };
 
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id)
+        .populate('restaurant', 'name owner')
+        .populate('cloudKitchen', 'name owner')
+        .populate('groceryShop', 'name owner');
     if (!order) return next(new AppError('Order not found', 404));
 
     const allowed = validTransitions[order.status];
@@ -208,8 +237,45 @@ const updateOrderStatus = catchAsync(async (req, res, next) => {
     }
     await order.save();
 
-    // Emit real-time update via Socket.IO
-    try { emitOrderUpdate(order._id.toString(), { status: order.status, updatedAt: new Date() }); } catch (e) { /* socket not ready */ }
+    // ── Socket: Broadcast status update to all parties ──
+    const businessName = order.restaurant?.name || order.cloudKitchen?.name || order.groceryShop?.name || 'Business';
+    const socketData = {
+        orderId: order._id,
+        orderNumber: order._id.toString().slice(-6).toUpperCase(),
+        status: order.status,
+        businessName,
+        updatedAt: new Date(),
+    };
+
+    try {
+        // Notify customer
+        emitToUser(order.user.toString(), 'orderStatusChanged', socketData);
+        // Notify order room
+        emitOrderUpdate(order._id.toString(), socketData);
+
+        // When status → ready, notify all delivery partners
+        if (status === 'ready') {
+            const business = order.restaurant || order.cloudKitchen || order.groceryShop;
+            notifyDeliveryPartners({
+                orderId: order._id,
+                orderNumber: order._id.toString().slice(-6).toUpperCase(),
+                businessName,
+                businessType: order.restaurant ? 'Restaurant' : order.cloudKitchen ? 'Cloud Kitchen' : 'Grocery',
+                pickupAddress: business?.address || order.deliveryAddress,
+                dropAddress: order.deliveryAddress,
+                totalAmount: order.totalAmount,
+                deliveryFee: order.deliveryFee,
+                itemCount: order.items?.length || 0,
+                timestamp: new Date(),
+            });
+        }
+
+        // If delivered, also notify business owner
+        if (status === 'delivered') {
+            const ownerId = order.restaurant?.owner || order.cloudKitchen?.owner || order.groceryShop?.owner;
+            if (ownerId) emitToUser(ownerId.toString(), 'orderStatusChanged', socketData);
+        }
+    } catch (e) { /* socket not ready */ }
 
     ApiResponse.success(res, { order }, `Order status updated to ${status}`);
 });

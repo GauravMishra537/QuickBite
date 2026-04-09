@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { FiToggleLeft, FiToggleRight, FiEdit2, FiTrash2, FiPlus, FiCalendar, FiCheckCircle } from 'react-icons/fi';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import StatCard from '../components/dashboard/StatCard';
 import OrderTable from '../components/dashboard/OrderTable';
 import MenuForm from '../components/dashboard/MenuForm';
+import { connectSocket, onSocketEvent } from '../services/socketService';
 import './Dashboard.css';
 
 const TABS = [
@@ -36,7 +37,24 @@ const RestaurantDashboard = () => {
     images: '',
   });
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+    if (user?._id) {
+      connectSocket(user._id, user.role);
+      const unsub = onSocketEvent('newOrder', (data) => {
+        toast.info(`🆕 New order from ${data.customerName}! ₹${data.totalAmount}`, { autoClose: 6000 });
+        fetchOrders();
+      });
+      return () => unsub();
+    }
+  }, [user?._id]);
+
+  const fetchOrders = async () => {
+    try {
+      const res = await api.get('/orders/business');
+      setOrders(res.data?.orders || []);
+    } catch {}
+  };
 
   const fetchAll = async () => {
     try {

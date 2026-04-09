@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import StatCard from '../components/dashboard/StatCard';
 import OrderTable from '../components/dashboard/OrderTable';
 import ProductForm from '../components/dashboard/ProductForm';
+import { connectSocket, onSocketEvent } from '../services/socketService';
 import './Dashboard.css';
 
 const TABS = [
@@ -31,7 +32,17 @@ const GroceryDashboard = () => {
     images: '',
   });
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+    if (user?._id) {
+      connectSocket(user._id, user.role);
+      const unsub = onSocketEvent('newOrder', (data) => {
+        toast.info(`🆕 New order from ${data.customerName}! ₹${data.totalAmount}`, { autoClose: 6000 });
+        api.get('/orders/business').then(res => setOrders(res.data?.orders || [])).catch(() => {});
+      });
+      return () => unsub();
+    }
+  }, [user?._id]);
 
   const fetchAll = async () => {
     try {

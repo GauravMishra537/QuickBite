@@ -9,6 +9,7 @@ const {
     getAvailableDeliveries,
     getActiveDeliveries,
     acceptDelivery,
+    markOutForDelivery,
     completeDelivery,
     getDeliveryHistory,
     getEarnings,
@@ -25,6 +26,7 @@ router.patch('/toggle-availability', protect, authorize('delivery'), toggleAvail
 router.get('/available', protect, authorize('delivery'), getAvailableDeliveries);
 router.get('/active', protect, authorize('delivery'), getActiveDeliveries);
 router.patch('/accept/:orderId', protect, authorize('delivery'), acceptDelivery);
+router.patch('/out-for-delivery/:orderId', protect, authorize('delivery'), markOutForDelivery);
 router.patch('/complete/:orderId', protect, authorize('delivery'), completeDelivery);
 router.get('/history', protect, authorize('delivery'), getDeliveryHistory);
 router.get('/earnings', protect, authorize('delivery'), getEarnings);
