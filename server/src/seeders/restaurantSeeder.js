@@ -24,12 +24,12 @@ const seedRestaurantsAndKitchens = async () => {
         const restaurantOwners = await User.find({ role: 'restaurant' });
         const kitchenOwners = await User.find({ role: 'cloudkitchen' });
 
-        if (restaurantOwners.length < 5) {
-            console.error('❌ Need at least 5 restaurant owners. Run userSeeder first.');
+        if (restaurantOwners.length < 8) {
+            console.error(`❌ Need at least 8 restaurant owners (found ${restaurantOwners.length}). Run userSeeder first.`);
             process.exit(1);
         }
-        if (kitchenOwners.length < 2) {
-            console.error('❌ Need at least 2 cloud kitchen owners. Run userSeeder first.');
+        if (kitchenOwners.length < 4) {
+            console.error(`❌ Need at least 4 cloud kitchen owners (found ${kitchenOwners.length}). Run userSeeder first.`);
             process.exit(1);
         }
 
@@ -67,7 +67,7 @@ const seedRestaurantsAndKitchens = async () => {
                 tags: ['fine-dining', 'family', 'romantic', 'North Indian'],
             },
             {
-                owner: restaurantOwners[0]._id,
+                owner: restaurantOwners[5]._id,
                 name: 'Bombay Brasserie',
                 description: 'Premium coastal and street food flavors of Mumbai. From vada pav to seafood thalis, experience the vibrant culinary culture of Maharashtra.',
                 cuisine: ['Maharashtrian', 'Street Food', 'Coastal'],
@@ -122,7 +122,7 @@ const seedRestaurantsAndKitchens = async () => {
                 tags: ['vegetarian', 'breakfast', 'family', 'South Indian'],
             },
             {
-                owner: restaurantOwners[1]._id,
+                owner: restaurantOwners[6]._id,
                 name: 'Royal Biryani House',
                 description: 'Legendary Hyderabadi dum biryani and authentic Nizami cuisine. Our biryanis are slow-cooked for hours using traditional recipes passed down generations.',
                 cuisine: ['Hyderabadi', 'Biryani', 'Mughlai'],
@@ -176,7 +176,7 @@ const seedRestaurantsAndKitchens = async () => {
                 tags: ['budget', 'quick-bites', 'vegetarian', 'street-food'],
             },
             {
-                owner: restaurantOwners[2]._id,
+                owner: restaurantOwners[7]._id,
                 name: 'Punjab Da Dhaba',
                 description: 'Rustic Punjabi flavors in an authentic dhaba setting. Famous for butter chicken, dal makhani, and freshly baked naans from our tandoor.',
                 cuisine: ['Punjabi', 'North Indian', 'Tandoori'],
@@ -288,7 +288,7 @@ const seedRestaurantsAndKitchens = async () => {
                 specialities: ['Quinoa Bowls', 'Protein Wraps', 'Smoothie Bowls'],
             },
             {
-                owner: kitchenOwners[0]._id,
+                owner: kitchenOwners[2]._id,
                 name: 'Wok Express',
                 description: 'Indo-Chinese and Pan-Asian cuisine delivered hot and fresh. From Hakka noodles to Manchurian, we bring the wok to your doorstep.',
                 cuisine: ['Chinese', 'Indo-Chinese', 'Pan-Asian'],
@@ -332,7 +332,7 @@ const seedRestaurantsAndKitchens = async () => {
                 specialities: ['Rajma Chawal', 'Dal Makhani Thali', 'Paneer Thali'],
             },
             {
-                owner: kitchenOwners[1]._id,
+                owner: kitchenOwners[3]._id,
                 name: 'Pizza Planet',
                 description: 'Artisan pizzas with desi and international toppings. Hand-tossed, stone-baked, and loaded with premium ingredients.',
                 cuisine: ['Italian', 'Pizza', 'Fast Food'],
@@ -456,15 +456,18 @@ const seedRestaurantsAndKitchens = async () => {
             { name: 'Cold Coffee', description: 'Creamy cold coffee with vanilla ice cream', price: 129, category: 'Beverages', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', rating: 4.3, totalOrders: 2100, cloudKitchen: kitchens[3]._id },
         ];
 
-        // --- Bombay Brasserie Menu (restaurants[3]) ---
+        // --- Bombay Brasserie Menu (restaurants[1]) ---
         const bombayBrasserieItems = [
-            { name: 'Pav Bhaji', description: 'Spiced mashed vegetables with buttery pav bread', price: 179, category: 'Street Food', isVeg: true, preparationTime: 15, spiceLevel: 'Medium', isBestseller: true, rating: 4.6, totalOrders: 3800, restaurant: restaurants[3]._id },
-            { name: 'Vada Pav', description: 'Classic Mumbai street food — spicy potato fritter in bread', price: 69, category: 'Street Food', isVeg: true, preparationTime: 8, spiceLevel: 'Spicy', isBestseller: true, rating: 4.5, totalOrders: 5200, restaurant: restaurants[3]._id },
-            { name: 'Bombay Sandwich', description: 'Triple-decker grilled sandwich with chutney and veggies', price: 129, category: 'Starters', isVeg: true, preparationTime: 10, spiceLevel: 'Mild', rating: 4.3, totalOrders: 2100, restaurant: restaurants[3]._id },
-            { name: 'Misal Pav', description: 'Spicy sprouted lentil curry with pav and toppings', price: 159, category: 'Street Food', isVeg: true, preparationTime: 15, spiceLevel: 'Spicy', rating: 4.4, totalOrders: 1900, restaurant: restaurants[3]._id },
-            { name: 'Kolhapuri Chicken', description: 'Fiery red chicken curry in Kolhapuri masala', price: 329, category: 'Main Course', isVeg: false, preparationTime: 25, spiceLevel: 'Extra Spicy', rating: 4.5, totalOrders: 1600, restaurant: restaurants[3]._id },
-            { name: 'Sol Kadhi', description: 'Refreshing coconut milk and kokum digestive drink', price: 79, category: 'Beverages', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', rating: 4.2, totalOrders: 2400, restaurant: restaurants[3]._id },
-            { name: 'Puran Poli', description: 'Sweet stuffed flatbread with chana dal filling', price: 99, category: 'Desserts', isVeg: true, preparationTime: 12, spiceLevel: 'Mild', rating: 4.4, totalOrders: 1800, restaurant: restaurants[3]._id },
+            { name: 'Pav Bhaji', description: 'Spiced mashed vegetables with buttery pav bread', price: 179, category: 'Street Food', isVeg: true, preparationTime: 15, spiceLevel: 'Medium', isBestseller: true, rating: 4.6, totalOrders: 3800, restaurant: restaurants[1]._id },
+            { name: 'Vada Pav', description: 'Classic Mumbai street food — spicy potato fritter in bread', price: 69, category: 'Street Food', isVeg: true, preparationTime: 8, spiceLevel: 'Spicy', isBestseller: true, rating: 4.5, totalOrders: 5200, restaurant: restaurants[1]._id },
+            { name: 'Bombay Sandwich', description: 'Triple-decker grilled sandwich with chutney and veggies', price: 129, category: 'Starters', isVeg: true, preparationTime: 10, spiceLevel: 'Mild', rating: 4.3, totalOrders: 2100, restaurant: restaurants[1]._id },
+            { name: 'Misal Pav', description: 'Spicy sprouted lentil curry with pav and toppings', price: 159, category: 'Street Food', isVeg: true, preparationTime: 15, spiceLevel: 'Spicy', rating: 4.4, totalOrders: 1900, restaurant: restaurants[1]._id },
+            { name: 'Kolhapuri Chicken', description: 'Fiery red chicken curry in Kolhapuri masala', price: 329, category: 'Main Course', isVeg: false, preparationTime: 25, spiceLevel: 'Extra Spicy', rating: 4.5, totalOrders: 1600, restaurant: restaurants[1]._id },
+            { name: 'Bombil Fry', description: 'Crispy Bombay Duck fish fry with tangy masala', price: 299, category: 'Starters', isVeg: false, preparationTime: 20, spiceLevel: 'Spicy', isBestseller: true, rating: 4.6, totalOrders: 1450, restaurant: restaurants[1]._id },
+            { name: 'Thalipeeth', description: 'Multigrain savory pancake with curd and butter', price: 139, category: 'Main Course', isVeg: true, preparationTime: 12, spiceLevel: 'Medium', rating: 4.3, totalOrders: 980, restaurant: restaurants[1]._id },
+            { name: 'Maharashtrian Fish Thali', description: 'Complete coastal thali with fish curry, rice, sol kadhi, and bhakri', price: 399, category: 'Thali', isVeg: false, preparationTime: 25, spiceLevel: 'Spicy', rating: 4.7, totalOrders: 1230, restaurant: restaurants[1]._id },
+            { name: 'Sol Kadhi', description: 'Refreshing coconut milk and kokum digestive drink', price: 79, category: 'Beverages', isVeg: true, preparationTime: 5, spiceLevel: 'Mild', rating: 4.2, totalOrders: 2400, restaurant: restaurants[1]._id },
+            { name: 'Puran Poli', description: 'Sweet stuffed flatbread with chana dal filling', price: 99, category: 'Desserts', isVeg: true, preparationTime: 12, spiceLevel: 'Mild', rating: 4.4, totalOrders: 1800, restaurant: restaurants[1]._id },
         ];
 
         // --- Chai & Chaat Corner Menu (restaurants[4]) ---

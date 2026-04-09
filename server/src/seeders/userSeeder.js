@@ -105,7 +105,7 @@ const dummyUsers = [
         ],
     },
 
-    // ---- RESTAURANT OWNERS (3) ----
+    // ---- RESTAURANT OWNERS (8 — one per restaurant) ----
     {
         name: 'Rajesh Kapoor',
         email: 'rajesh.kapoor@gmail.com',
@@ -202,8 +202,36 @@ const dummyUsers = [
         ],
     },
 
+    // Additional restaurant owners for 1:1 mapping
+    {
+        name: 'Deepa Mukherjee',
+        email: 'deepa.mukherjee@gmail.com',
+        password: 'Password@123',
+        phone: '+91 9876543232',
+        role: 'restaurant',
+        isVerified: true,
+        addresses: [{ label: 'Restaurant', street: '78, Linking Road, Bandra West', city: 'Mumbai', state: 'Maharashtra', zipCode: '400050', country: 'India', isDefault: true }],
+    },
+    {
+        name: 'Sanjay Reddy',
+        email: 'sanjay.reddy@gmail.com',
+        password: 'Password@123',
+        phone: '+91 9876543233',
+        role: 'restaurant',
+        isVerified: true,
+        addresses: [{ label: 'Restaurant', street: '23, Jubilee Hills, Road No. 36', city: 'Hyderabad', state: 'Telangana', zipCode: '500033', country: 'India', isDefault: true }],
+    },
+    {
+        name: 'Gurpreet Kaur',
+        email: 'gurpreet.kaur@gmail.com',
+        password: 'Password@123',
+        phone: '+91 9876543234',
+        role: 'restaurant',
+        isVerified: true,
+        addresses: [{ label: 'Restaurant', street: '56, GT Road, Model Town', city: 'Ludhiana', state: 'Punjab', zipCode: '141002', country: 'India', isDefault: true }],
+    },
 
-    // ---- CLOUD KITCHEN OWNERS (2) ----
+    // ---- CLOUD KITCHEN OWNERS (4 — one per kitchen) ----
     {
         name: 'Neha Verma',
         email: 'neha.verma@gmail.com',
@@ -241,6 +269,24 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+    },
+    {
+        name: 'Ritu Sharma',
+        email: 'ritu.sharma@gmail.com',
+        password: 'Password@123',
+        phone: '+91 9876543235',
+        role: 'cloudkitchen',
+        isVerified: true,
+        addresses: [{ label: 'Kitchen', street: '67, Koramangala 5th Block', city: 'Bengaluru', state: 'Karnataka', zipCode: '560095', country: 'India', isDefault: true }],
+    },
+    {
+        name: 'Vishal Jain',
+        email: 'vishal.jain@gmail.com',
+        password: 'Password@123',
+        phone: '+91 9876543236',
+        role: 'cloudkitchen',
+        isVerified: true,
+        addresses: [{ label: 'Kitchen', street: '22, Powai, Hiranandani', city: 'Mumbai', state: 'Maharashtra', zipCode: '400076', country: 'India', isDefault: true }],
     },
 
     // ---- GROCERY SHOP OWNERS (2) ----
