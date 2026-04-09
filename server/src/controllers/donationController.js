@@ -4,6 +4,7 @@ const Restaurant = require('../models/Restaurant');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const ApiResponse = require('../utils/apiResponse');
+const { emitToUser, notifyDeliveryPartners } = require('../config/socket');
 
 // ===== NGO CRUD =====
 
@@ -174,7 +175,8 @@ const updateDonationStatus = catchAsync(async (req, res, next) => {
         req.params.id,
         { status },
         { new: true, runValidators: true }
-    ).populate('restaurant', 'name').populate('ngo', 'name');
+    ).populate('restaurant', 'name owner address phone')
+     .populate('ngo', 'name owner');
 
     if (!donation) return next(new AppError('Donation not found', 404));
 
@@ -182,6 +184,43 @@ const updateDonationStatus = catchAsync(async (req, res, next) => {
     if (status === 'delivered' && donation.ngo) {
         await NGO.findByIdAndUpdate(donation.ngo._id, { $inc: { totalDonationsReceived: 1 } });
     }
+
+    // ── Socket: Notify delivery partners when ready for pickup ──
+    if (status === 'readyForPickup') {
+        try {
+            const deliveryFee = 35; // Restaurant pays delivery fee for surplus food
+            notifyDeliveryPartners({
+                orderId: donation._id,
+                type: 'donation',
+                businessName: donation.restaurant?.name || 'Restaurant',
+                totalAmount: deliveryFee,
+                items: donation.items,
+                pickupAddress: donation.pickupAddress,
+                deliveryAddress: donation.deliveryAddress,
+                message: `🍲 Surplus food pickup from ${donation.restaurant?.name}! Earn ₹${deliveryFee}`,
+            });
+        } catch (e) { /* socket not ready */ }
+    }
+
+    // ── Socket: Notify NGO owner about status changes ──
+    try {
+        if (donation.ngo?.owner) {
+            emitToUser(donation.ngo.owner.toString(), 'donationStatusChanged', {
+                donationId: donation._id,
+                status,
+                restaurantName: donation.restaurant?.name,
+                message: `Donation from ${donation.restaurant?.name} is now: ${status}`,
+            });
+        }
+        // Notify restaurant owner
+        if (donation.restaurant?.owner) {
+            emitToUser(donation.restaurant.owner.toString(), 'donationStatusChanged', {
+                donationId: donation._id,
+                status,
+                message: `Your donation status updated to: ${status}`,
+            });
+        }
+    } catch (e) { /* socket not ready */ }
 
     ApiResponse.success(res, { donation }, `Donation status updated to ${status}`);
 });

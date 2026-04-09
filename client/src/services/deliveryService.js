@@ -36,6 +36,18 @@ const deliveryService = {
 
   // Get earnings
   getEarnings: () => api.get('/deliveries/earnings'),
+
+  // ── Donation Delivery (Surplus Food → NGO) ──
+
+  // Accept a donation delivery
+  acceptDonationDelivery: (donationId) => api.patch(`/deliveries/donation/accept/${donationId}`),
+
+  // Mark donation as out for delivery
+  markDonationOutForDelivery: (donationId) => api.patch(`/deliveries/donation/out-for-delivery/${donationId}`),
+
+  // Complete donation delivery
+  completeDonationDelivery: (donationId) => api.patch(`/deliveries/donation/complete/${donationId}`),
 };
 
 export default deliveryService;
+

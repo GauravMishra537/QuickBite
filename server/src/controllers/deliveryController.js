@@ -1,5 +1,7 @@
 const DeliveryPartner = require('../models/DeliveryPartner');
 const Order = require('../models/Order');
+const Donation = require('../models/Donation');
+const Restaurant = require('../models/Restaurant');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const ApiResponse = require('../utils/apiResponse');
@@ -86,6 +88,7 @@ const toggleAvailability = catchAsync(async (req, res, next) => {
  * @access  Private (delivery role)
  */
 const getAvailableDeliveries = catchAsync(async (req, res, next) => {
+    // Get regular orders ready for delivery
     const orders = await Order.find({ status: 'ready', deliveryPartner: null })
         .populate('restaurant', 'name address phone images')
         .populate('cloudKitchen', 'name address phone images')
@@ -95,7 +98,22 @@ const getAvailableDeliveries = catchAsync(async (req, res, next) => {
         .limit(20)
         .lean();
 
-    ApiResponse.success(res, { orders }, 'Available deliveries retrieved');
+    // Get donation pickups ready for delivery
+    const donations = await Donation.find({ status: 'readyForPickup', deliveryPartner: null })
+        .populate('restaurant', 'name address phone images')
+        .populate('ngo', 'name address phone')
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean();
+
+    // Mark donations so client can distinguish them
+    const donationOrders = donations.map(d => ({
+        ...d,
+        _type: 'donation',
+        deliveryFee: 35,
+    }));
+
+    ApiResponse.success(res, { orders, donations: donationOrders }, 'Available deliveries retrieved');
 });
 
 /**
@@ -253,6 +271,8 @@ const completeDelivery = catchAsync(async (req, res, next) => {
 const getActiveDeliveries = catchAsync(async (req, res) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
+
+    // Active regular orders
     const orders = await Order.find({
         deliveryPartner: req.user._id,
         $or: [
@@ -267,7 +287,19 @@ const getActiveDeliveries = catchAsync(async (req, res) => {
         .sort({ createdAt: -1 })
         .lean();
 
-    ApiResponse.success(res, { orders }, 'Active deliveries retrieved');
+    // Active donation deliveries
+    const donations = await Donation.find({
+        deliveryPartner: req.user._id,
+        status: { $in: ['pickedUp', 'outForDelivery'] },
+    })
+        .populate('restaurant', 'name address phone')
+        .populate('ngo', 'name address phone')
+        .sort({ createdAt: -1 })
+        .lean();
+
+    const donationOrders = donations.map(d => ({ ...d, _type: 'donation', deliveryFee: 35 }));
+
+    ApiResponse.success(res, { orders, donations: donationOrders }, 'Active deliveries retrieved');
 });
 
 /**
@@ -292,7 +324,22 @@ const getDeliveryHistory = catchAsync(async (req, res, next) => {
         Order.countDocuments({ deliveryPartner: req.user._id, status: 'delivered' }),
     ]);
 
-    ApiResponse.paginated(res, { orders }, { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) }, 'Delivery history retrieved');
+    // Also get donation delivery history
+    const donationHistory = await Donation.find({
+        deliveryPartner: req.user._id,
+        status: 'delivered',
+    })
+        .populate('restaurant', 'name')
+        .populate('ngo', 'name')
+        .sort({ updatedAt: -1 })
+        .lean();
+
+    const allHistory = [
+        ...orders.map(o => ({ ...o, _type: 'order' })),
+        ...donationHistory.map(d => ({ ...d, _type: 'donation', deliveryFee: 35 })),
+    ].sort((a, b) => new Date(b.deliveredAt || b.updatedAt) - new Date(a.deliveredAt || a.updatedAt));
+
+    ApiResponse.paginated(res, { orders: allHistory }, { total: total + donationHistory.length, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil((total + donationHistory.length) / parseInt(limit)) }, 'Delivery history retrieved');
 });
 
 /**
@@ -313,11 +360,18 @@ const getEarnings = catchAsync(async (req, res, next) => {
         deliveredAt: { $gte: todayStart },
     });
 
+    // Count donation deliveries today
+    const todayDonations = await Donation.countDocuments({
+        deliveryPartner: req.user._id,
+        status: 'delivered',
+        updatedAt: { $gte: todayStart },
+    });
+
     ApiResponse.success(res, {
         totalDeliveries: partner.totalDeliveries,
         totalEarnings: partner.totalEarnings,
-        todayDeliveries: todayOrders,
-        todayEarnings: todayOrders * 50,
+        todayDeliveries: todayOrders + todayDonations,
+        todayEarnings: (todayOrders * 50) + (todayDonations * 35),
         rating: partner.rating,
         isAvailable: partner.isAvailable,
     }, 'Earnings retrieved');
@@ -337,6 +391,133 @@ const getAllPartners = catchAsync(async (req, res, next) => {
     ApiResponse.success(res, { partners }, 'All partners retrieved');
 });
 
+// ===== DONATION DELIVERY ENDPOINTS =====
+
+/**
+ * @desc    Accept a donation delivery
+ * @route   PATCH /api/deliveries/donation/accept/:donationId
+ * @access  Private (delivery role)
+ */
+const acceptDonationDelivery = catchAsync(async (req, res, next) => {
+    const partner = await DeliveryPartner.findOne({ user: req.user._id });
+    if (!partner) return next(new AppError('Profile not found', 404));
+    if (partner.isOnDelivery) return next(new AppError('You are already on a delivery', 400));
+
+    const donation = await Donation.findById(req.params.donationId)
+        .populate('restaurant', 'name address phone owner')
+        .populate('ngo', 'name address phone owner');
+    if (!donation) return next(new AppError('Donation not found', 404));
+    if (donation.status !== 'readyForPickup') return next(new AppError('Donation is not ready for pickup', 400));
+    if (donation.deliveryPartner) return next(new AppError('This donation delivery is already assigned', 400));
+
+    donation.deliveryPartner = req.user._id;
+    donation.status = 'pickedUp';
+    await donation.save();
+
+    partner.isOnDelivery = true;
+    partner.isAvailable = false;
+    await partner.save();
+
+    // Socket: Notify restaurant owner and NGO
+    try {
+        const socketData = {
+            donationId: donation._id,
+            status: 'pickedUp',
+            deliveryPartner: req.user.name,
+            message: `${req.user.name} has picked up the surplus food donation!`,
+        };
+        if (donation.restaurant?.owner) emitToUser(donation.restaurant.owner.toString(), 'donationStatusChanged', socketData);
+        if (donation.ngo?.owner) emitToUser(donation.ngo.owner.toString(), 'donationStatusChanged', socketData);
+    } catch (e) { /* socket not ready */ }
+
+    ApiResponse.success(res, { donation }, 'Donation delivery accepted! Heading to pickup 🍲');
+});
+
+/**
+ * @desc    Mark donation as out for delivery
+ * @route   PATCH /api/deliveries/donation/out-for-delivery/:donationId
+ * @access  Private (delivery role)
+ */
+const markDonationOutForDelivery = catchAsync(async (req, res, next) => {
+    const donation = await Donation.findById(req.params.donationId)
+        .populate('restaurant', 'name owner')
+        .populate('ngo', 'name owner');
+    if (!donation) return next(new AppError('Donation not found', 404));
+    if (!donation.deliveryPartner || donation.deliveryPartner.toString() !== req.user._id.toString()) {
+        return next(new AppError('Not your delivery', 403));
+    }
+    if (donation.status !== 'pickedUp') return next(new AppError('Donation is not picked up yet', 400));
+
+    donation.status = 'outForDelivery';
+    await donation.save();
+
+    try {
+        const socketData = {
+            donationId: donation._id,
+            status: 'outForDelivery',
+            deliveryPartner: req.user.name,
+            message: `Surplus food is on the way to ${donation.ngo?.name || 'the NGO'}!`,
+        };
+        if (donation.restaurant?.owner) emitToUser(donation.restaurant.owner.toString(), 'donationStatusChanged', socketData);
+        if (donation.ngo?.owner) emitToUser(donation.ngo.owner.toString(), 'donationStatusChanged', socketData);
+    } catch (e) { /* socket not ready */ }
+
+    ApiResponse.success(res, { donation }, 'Donation is out for delivery');
+});
+
+/**
+ * @desc    Complete a donation delivery (restaurant pays ₹35 delivery fee)
+ * @route   PATCH /api/deliveries/donation/complete/:donationId
+ * @access  Private (delivery role)
+ */
+const completeDonationDelivery = catchAsync(async (req, res, next) => {
+    const donation = await Donation.findById(req.params.donationId)
+        .populate('restaurant', 'name owner')
+        .populate('ngo', 'name owner');
+    if (!donation) return next(new AppError('Donation not found', 404));
+    if (!donation.deliveryPartner || donation.deliveryPartner.toString() !== req.user._id.toString()) {
+        return next(new AppError('Not your delivery', 403));
+    }
+    if (!['pickedUp', 'outForDelivery'].includes(donation.status)) {
+        return next(new AppError('Donation is not out for delivery', 400));
+    }
+
+    donation.status = 'delivered';
+    await donation.save();
+
+    // Update NGO donation count
+    if (donation.ngo) {
+        const NGO = require('../models/NGO');
+        await NGO.findByIdAndUpdate(donation.ngo._id, { $inc: { totalDonationsReceived: 1 } });
+    }
+
+    // ₹35 delivery fee paid by restaurant
+    const donationDeliveryFee = 35;
+    const partner = await DeliveryPartner.findOneAndUpdate(
+        { user: req.user._id },
+        {
+            isOnDelivery: false,
+            isAvailable: true,
+            currentOrder: null,
+            $inc: { totalDeliveries: 1, totalEarnings: donationDeliveryFee },
+        },
+        { new: true }
+    );
+
+    try {
+        const socketData = {
+            donationId: donation._id,
+            status: 'delivered',
+            deliveryPartner: req.user.name,
+            message: `Surplus food delivered successfully to ${donation.ngo?.name || 'NGO'}! 🎉`,
+        };
+        if (donation.restaurant?.owner) emitToUser(donation.restaurant.owner.toString(), 'donationStatusChanged', socketData);
+        if (donation.ngo?.owner) emitToUser(donation.ngo.owner.toString(), 'donationStatusChanged', socketData);
+    } catch (e) { /* socket not ready */ }
+
+    ApiResponse.success(res, { donation, partner, earnings: donationDeliveryFee }, `Donation delivered! ₹${donationDeliveryFee} earned (paid by restaurant) 🎉`);
+});
+
 module.exports = {
     registerPartner,
     getMyProfile,
@@ -351,4 +532,8 @@ module.exports = {
     getDeliveryHistory,
     getEarnings,
     getAllPartners,
+    // Donation delivery endpoints
+    acceptDonationDelivery,
+    markDonationOutForDelivery,
+    completeDonationDelivery,
 };

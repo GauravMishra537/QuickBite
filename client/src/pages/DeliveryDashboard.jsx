@@ -69,14 +69,17 @@ const DeliveryDashboard = () => {
     try {
       const [profileRes, availRes, activeRes, histRes, earnRes] = await Promise.all([
         deliveryService.getProfile().catch(() => ({ data: null })),
-        deliveryService.getAvailable().catch(() => ({ data: { orders: [] } })),
-        deliveryService.getActive().catch(() => ({ data: { orders: [] } })),
+        deliveryService.getAvailable().catch(() => ({ data: { orders: [], donations: [] } })),
+        deliveryService.getActive().catch(() => ({ data: { orders: [], donations: [] } })),
         deliveryService.getHistory().catch(() => ({ data: { orders: [] } })),
         deliveryService.getEarnings().catch(() => ({ data: null })),
       ]);
       setProfile(profileRes.data?.partner || null);
-      setAvailableOrders(availRes.data?.orders || []);
-      setActiveOrders(activeRes.data?.orders || []);
+      // Merge regular orders + donation deliveries
+      const allAvailable = [...(availRes.data?.orders || []), ...(availRes.data?.donations || [])];
+      const allActive = [...(activeRes.data?.orders || []), ...(activeRes.data?.donations || [])];
+      setAvailableOrders(allAvailable);
+      setActiveOrders(allActive);
       setHistory(histRes.data?.orders || histRes.data?.deliveries || []);
       setEarnings(earnRes.data);
     } catch (err) { console.error(err); }
@@ -89,8 +92,10 @@ const DeliveryDashboard = () => {
         deliveryService.getActive(),
         deliveryService.getAvailable(),
       ]);
-      setActiveOrders(activeRes.data?.orders || []);
-      setAvailableOrders(availRes.data?.orders || []);
+      const allActive = [...(activeRes.data?.orders || []), ...(activeRes.data?.donations || [])];
+      const allAvailable = [...(availRes.data?.orders || []), ...(availRes.data?.donations || [])];
+      setActiveOrders(allActive);
+      setAvailableOrders(allAvailable);
     } catch {}
   };
 
@@ -113,28 +118,43 @@ const DeliveryDashboard = () => {
     } catch { toast.error('Toggle failed'); }
   };
 
-  const handleAccept = async (orderId) => {
+  const handleAccept = async (orderId, isDonation = false) => {
     try {
-      await deliveryService.acceptDelivery(orderId);
+      if (isDonation) {
+        await deliveryService.acceptDonationDelivery(orderId);
+        toast.success('Donation pickup accepted! Heading to restaurant 🍲');
+      } else {
+        await deliveryService.acceptDelivery(orderId);
+        toast.success('Delivery accepted! Heading to pickup 🏍️');
+      }
       setAvailableOrders(prev => prev.filter(o => o._id !== orderId));
       setNewOrderCount(0);
-      toast.success('Delivery accepted! Heading to pickup 🏍️');
       fetchActive();
     } catch (err) { toast.error(err.response?.data?.message || 'Accept failed'); }
   };
 
-  const handleOutForDelivery = async (orderId) => {
+  const handleOutForDelivery = async (orderId, isDonation = false) => {
     try {
-      await deliveryService.markOutForDelivery(orderId);
-      toast.success('On the way to customer! 🚚');
+      if (isDonation) {
+        await deliveryService.markDonationOutForDelivery(orderId);
+        toast.success('On the way to NGO! 🚚');
+      } else {
+        await deliveryService.markOutForDelivery(orderId);
+        toast.success('On the way to customer! 🚚');
+      }
       fetchActive();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
-  const handleComplete = async (orderId) => {
+  const handleComplete = async (orderId, isDonation = false) => {
     try {
-      await deliveryService.completeDelivery(orderId);
-      toast.success('Delivery completed! ₹50 earned 🎉');
+      if (isDonation) {
+        await deliveryService.completeDonationDelivery(orderId);
+        toast.success('Donation delivered! ₹35 earned (paid by restaurant) 🎉');
+      } else {
+        await deliveryService.completeDelivery(orderId);
+        toast.success('Delivery completed! ₹50 earned 🎉');
+      }
       fetchData();
     } catch (err) { toast.error(err.response?.data?.message || 'Complete failed'); }
   };
@@ -247,10 +267,15 @@ const DeliveryDashboard = () => {
                 availableOrders.slice(0, 4).map((order) => (
                   <div key={order._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{order.restaurant?.name || order.cloudKitchen?.name || order.groceryShop?.name || order.businessName || '—'}</div>
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>₹{order.totalAmount || 0} · {order.items?.length || order.itemCount || 0} items</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>
+                        {order._type === 'donation' && <span style={{ background: '#27ae60', color: 'white', padding: '1px 6px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 700, marginRight: 6 }}>🍲 DONATION</span>}
+                        {order.restaurant?.name || order.cloudKitchen?.name || order.groceryShop?.name || order.businessName || '—'}
+                      </div>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                        {order._type === 'donation' ? `${order.items?.[0]?.quantity || '—'} servings · Earn ₹${order.deliveryFee || 35}` : `₹${order.totalAmount || 0} · ${order.items?.length || order.itemCount || 0} items`}
+                      </div>
                     </div>
-                    <button className="btn btn-primary btn-sm" onClick={() => handleAccept(order._id || order.orderId)}>Accept</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => handleAccept(order._id || order.orderId, order._type === 'donation')}>Accept</button>
                   </div>
                 ))
               )}
@@ -289,8 +314,9 @@ const DeliveryDashboard = () => {
             </div>
           ) : (
             activeOrders.map((order) => {
+              const isDonation = order._type === 'donation';
               const source = order.restaurant || order.cloudKitchen || order.groceryShop || {};
-              const sourceType = order.restaurant ? '🍽️ Restaurant' : order.cloudKitchen ? '👨‍🍳 Cloud Kitchen' : '🛒 Grocery';
+              const sourceType = isDonation ? '🍲 Donation' : (order.restaurant ? '🍽️ Restaurant' : order.cloudKitchen ? '👨‍🍳 Cloud Kitchen' : '🛒 Grocery');
               const currentStep = getStatusStep(order.status);
               const isDelivered = order.status === 'delivered';
 
@@ -333,9 +359,9 @@ const DeliveryDashboard = () => {
                     </div>
                     <div style={{ background: 'var(--bg-secondary)', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)' }}>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}><FiMapPin style={{ verticalAlign: 'middle' }} /> DROP-OFF</p>
-                      <p style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{order.user?.name || 'Customer'}</p>
+                      <p style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{isDonation ? (order.ngo?.name || 'NGO') : (order.user?.name || 'Customer')}</p>
                       <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{order.deliveryAddress?.street || 'Address'}, {order.deliveryAddress?.city || ''}</p>
-                      {order.user?.phone && <p style={{ fontSize: '0.8125rem', color: 'var(--primary)', marginTop: 4 }}><FiPhone style={{ verticalAlign: 'middle' }} /> {order.user.phone}</p>}
+                      {(order.user?.phone || order.ngo?.phone) && <p style={{ fontSize: '0.8125rem', color: 'var(--primary)', marginTop: 4 }}><FiPhone style={{ verticalAlign: 'middle' }} /> {isDonation ? order.ngo?.phone : order.user?.phone}</p>}
                     </div>
                   </div>
 
@@ -343,12 +369,12 @@ const DeliveryDashboard = () => {
                   {!isDelivered && (
                     <div style={{ display: 'flex', gap: 'var(--space-sm)', borderTop: '1px solid var(--border-color)', paddingTop: 'var(--space-md)' }}>
                       {order.status === 'pickedUp' && (
-                        <button className="btn btn-primary" onClick={() => handleOutForDelivery(order._id)} style={{ flex: 1, gap: 6 }}>
+                        <button className="btn btn-primary" onClick={() => handleOutForDelivery(order._id, isDonation)} style={{ flex: 1, gap: 6 }}>
                           <FiTruck /> Out for Delivery
                         </button>
                       )}
                       {(order.status === 'outForDelivery' || order.status === 'pickedUp') && (
-                        <button className="btn btn-primary" onClick={() => handleComplete(order._id)} style={{ flex: 1, gap: 6, background: '#27ae60' }}>
+                        <button className="btn btn-primary" onClick={() => handleComplete(order._id, isDonation)} style={{ flex: 1, gap: 6, background: '#27ae60' }}>
                           <FiCheckCircle /> Mark Delivered
                         </button>
                       )}
@@ -380,23 +406,35 @@ const DeliveryDashboard = () => {
             </div>
           ) : (
             availableOrders.map((order) => {
+              const isDonation = order._type === 'donation';
               const source = order.restaurant || order.cloudKitchen || order.groceryShop || {};
               const sourceName = source.name || order.businessName || 'Business';
-              const sourceType = order.restaurant ? '🍽️' : order.cloudKitchen ? '👨‍🍳' : order.groceryShop ? '🛒' : (order.businessType === 'Cloud Kitchen' ? '👨‍🍳' : order.businessType === 'Grocery' ? '🛒' : '🍽️');
+              const sourceType = isDonation ? '🍲' : (order.restaurant ? '🍽️' : order.cloudKitchen ? '👨‍🍳' : order.groceryShop ? '🛒' : (order.businessType === 'Cloud Kitchen' ? '👨‍🍳' : order.businessType === 'Grocery' ? '🛒' : '🍽️'));
 
               return (
-                <div key={order._id || order.orderId} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', marginBottom: 'var(--space-md)', transition: 'all 0.2s' }}>
+                <div key={order._id || order.orderId} style={{ background: 'var(--bg-card)', border: `1px solid ${isDonation ? '#27ae60' : 'var(--border-color)'}`, borderRadius: 'var(--radius-lg)', padding: 'var(--space-lg)', marginBottom: 'var(--space-md)', transition: 'all 0.2s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                         <span style={{ fontSize: '1.25rem' }}>{sourceType}</span>
                         <h4 style={{ fontWeight: 700 }}>{sourceName}</h4>
+                        {isDonation && <span style={{ background: '#27ae60', color: 'white', padding: '2px 8px', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 700 }}>SURPLUS DONATION</span>}
                         <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>#{(order._id || order.orderId)?.toString().slice(-6).toUpperCase()}</span>
                       </div>
                       <div style={{ display: 'flex', gap: 'var(--space-lg)', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                        <span><FiPackage style={{ verticalAlign: 'middle' }} /> {order.items?.length || order.itemCount || 0} items</span>
-                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{order.totalAmount || 0}</span>
-                        <span style={{ color: 'var(--success)', fontWeight: 600 }}>Earn ₹{order.deliveryFee || 50}</span>
+                        {isDonation ? (
+                          <>
+                            <span><FiPackage style={{ verticalAlign: 'middle' }} /> {order.items?.[0]?.name || 'Surplus Food'} ({order.items?.[0]?.quantity || '—'} {order.items?.[0]?.unit || 'servings'})</span>
+                            <span style={{ color: 'var(--text-muted)' }}>→ {order.ngo?.name || 'NGO'}</span>
+                            <span style={{ color: 'var(--success)', fontWeight: 600 }}>Earn ₹{order.deliveryFee || 35} (Restaurant pays)</span>
+                          </>
+                        ) : (
+                          <>
+                            <span><FiPackage style={{ verticalAlign: 'middle' }} /> {order.items?.length || order.itemCount || 0} items</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>₹{order.totalAmount || 0}</span>
+                            <span style={{ color: 'var(--success)', fontWeight: 600 }}>Earn ₹{order.deliveryFee || 50}</span>
+                          </>
+                        )}
                       </div>
                       {(source.address || order.pickupAddress) && (
                         <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: 6 }}>
@@ -405,7 +443,7 @@ const DeliveryDashboard = () => {
                       )}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginLeft: 'var(--space-md)' }}>
-                      <button className="btn btn-primary" onClick={() => handleAccept(order._id || order.orderId)} style={{ minWidth: 100 }}>
+                      <button className="btn btn-primary" onClick={() => handleAccept(order._id || order.orderId, isDonation)} style={{ minWidth: 100 }}>
                         ✅ Accept
                       </button>
                     </div>
@@ -434,10 +472,13 @@ const DeliveryDashboard = () => {
                 {history.map((order) => (
                   <tr key={order._id}>
                     <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.8125rem' }}>#{order._id?.slice(-6).toUpperCase()}</td>
-                    <td>{order.restaurant?.name || order.cloudKitchen?.name || order.groceryShop?.name || '—'}</td>
-                    <td>{order.user?.name || '—'}</td>
-                    <td>₹{order.totalAmount || 0}</td>
-                    <td style={{ color: 'var(--success)', fontWeight: 600 }}>₹{order.deliveryFee || 50}</td>
+                    <td>
+                      {order._type === 'donation' && <span style={{ background: '#27ae60', color: 'white', padding: '1px 5px', borderRadius: 4, fontSize: '0.6rem', fontWeight: 700, marginRight: 4 }}>🍲</span>}
+                      {order.restaurant?.name || order.cloudKitchen?.name || order.groceryShop?.name || '—'}
+                    </td>
+                    <td>{order._type === 'donation' ? (order.ngo?.name || 'NGO') : (order.user?.name || '—')}</td>
+                    <td>{order._type === 'donation' ? 'Free (Donation)' : `₹${order.totalAmount || 0}`}</td>
+                    <td style={{ color: 'var(--success)', fontWeight: 600 }}>₹{order.deliveryFee || (order._type === 'donation' ? 35 : 50)}</td>
                     <td>{new Date(order.deliveredAt || order.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
                     <td><span className="status-badge delivered">Delivered</span></td>
                   </tr>

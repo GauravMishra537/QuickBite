@@ -14,6 +14,10 @@ const {
     getDeliveryHistory,
     getEarnings,
     getAllPartners,
+    // Donation delivery endpoints
+    acceptDonationDelivery,
+    markDonationOutForDelivery,
+    completeDonationDelivery,
 } = require('../controllers/deliveryController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -31,7 +35,13 @@ router.patch('/complete/:orderId', protect, authorize('delivery'), completeDeliv
 router.get('/history', protect, authorize('delivery'), getDeliveryHistory);
 router.get('/earnings', protect, authorize('delivery'), getEarnings);
 
+// Donation delivery routes (surplus food → NGO)
+router.patch('/donation/accept/:donationId', protect, authorize('delivery'), acceptDonationDelivery);
+router.patch('/donation/out-for-delivery/:donationId', protect, authorize('delivery'), markDonationOutForDelivery);
+router.patch('/donation/complete/:donationId', protect, authorize('delivery'), completeDonationDelivery);
+
 // Admin
 router.get('/admin/all', protect, authorize('admin'), getAllPartners);
 
 module.exports = router;
+
