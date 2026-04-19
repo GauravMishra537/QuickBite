@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const GOOGLE_MAPS_KEY = 'AIzaSyABrccmU5UJ9rQSDXRn1C2mo5QssF0g4Pc';
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 
 /* Load Google Maps API via script tag (reliable, no deprecated Loader class) */
 const loadGoogleMaps = () => {
