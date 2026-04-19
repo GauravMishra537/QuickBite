@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "QuickBite — Full-Stack Food & Grocery Delivery Platform",
   "scripts": {
-  "start": "cd server && node src/index.js",
-  "install:all": "npm install && npm install --prefix server && npm install --prefix client",
-  "build:client": "cd client && npm install vite @vitejs/plugin-react && npm run build",
-  "render:build": "npm run install:all && npm run build:client"
-},
+    "start": "cd server && node src/index.js",
+    "install:all": "npm install --prefix server && npm install --prefix client --include=dev",
+    "build:client": "npm run build --prefix client",
+    "render:build": "npm run install:all && npm run build:client"
+  },
   "keywords": ["food-delivery", "mern", "quickbite"],
   "author": "Gaurav",
   "license": "ISC"
