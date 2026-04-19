@@ -25,7 +25,9 @@ const app = express();
 // ---------------------
 // Security Middleware
 // ---------------------
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 
 // ---------------------
 // CORS Configuration
@@ -120,7 +122,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(clientBuild));
 
   // All non-API routes → React app (SPA client-side routing)
-  app.get('*', (req, res) => {
+  app.get('/{*splat}', (req, res) => {
     res.sendFile(path.join(clientBuild, 'index.html'));
   });
 } else {
