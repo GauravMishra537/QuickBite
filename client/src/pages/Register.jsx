@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiUser, FiMail, FiLock, FiPhone, FiEye, FiEyeOff, FiCamera } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiPhone, FiEye, FiEyeOff, FiCamera, FiHelpCircle } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import './Auth.css';
 
@@ -14,10 +14,31 @@ const ROLES = [
   { value: 'ngo', icon: '🤝', label: 'NGO' },
 ];
 
+const SECURITY_QUESTIONS = [
+  'What is your favourite food?',
+  'What is the name of your first pet?',
+  'What city were you born in?',
+  "What is your mother's maiden name?",
+  'What was your first car?',
+  'What is your favourite book?',
+  'What is your childhood nickname?',
+  'What is the name of your school?',
+  'What is your favourite movie?',
+  'What street did you grow up on?',
+  'What is your favourite dessert?',
+  'What is your lucky number?',
+  'What is your favourite cricket team?',
+  'What is the name of your best friend?',
+];
+
 const Register = () => {
   const { register, loading } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '', role: 'customer', avatar: '' });
+  const [form, setForm] = useState({
+    name: '', email: '', password: '', confirmPassword: '', phone: '',
+    role: 'customer', avatar: '',
+    securityQuestion: '', securityAnswer: '',
+  });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
 
@@ -39,6 +60,10 @@ const Register = () => {
       setError('Passwords do not match');
       return;
     }
+    if (!form.securityQuestion || !form.securityAnswer.trim()) {
+      setError('Please select a security question and provide an answer');
+      return;
+    }
 
     const result = await register({
       name: form.name,
@@ -46,12 +71,13 @@ const Register = () => {
       password: form.password,
       phone: form.phone,
       role: form.role,
+      securityQuestion: form.securityQuestion,
+      securityAnswer: form.securityAnswer.trim(),
       ...(form.avatar && { avatar: form.avatar }),
     });
 
     if (result.success) {
       toast.success(`Welcome to QuickBite, ${result.user.name}!`);
-      // Role-based redirect — same as login
       const role = result.user.role;
       if (role === 'customer') {
         navigate('/');
@@ -135,6 +161,33 @@ const Register = () => {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* ── Security Question & Answer ── */}
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 'var(--space-sm)' }}>
+              <FiHelpCircle style={{ color: 'var(--primary)' }} />
+              <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>Security Question</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>(for password recovery)</span>
+            </div>
+            <div className="input-group" style={{ marginBottom: 'var(--space-sm)' }}>
+              <select className="input" value={form.securityQuestion} onChange={(e) => onChange('securityQuestion', e.target.value)}
+                style={{ cursor: 'pointer', appearance: 'auto' }}>
+                <option value="">— Select a question —</option>
+                {SECURITY_QUESTIONS.map((q) => (
+                  <option key={q} value={q}>{q}</option>
+                ))}
+              </select>
+            </div>
+            {form.securityQuestion && (
+              <div className="input-group">
+                <div className="auth-input-icon">
+                  <input type="text" className="input" placeholder="Type your answer..." value={form.securityAnswer}
+                    onChange={(e) => onChange('securityAnswer', e.target.value)} />
+                  <FiHelpCircle className="icon" />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Photo URL for business roles */}

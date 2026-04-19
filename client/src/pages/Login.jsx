@@ -23,15 +23,18 @@ const Login = () => {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
 
-  // Modal states
+  // More modal
   const [showMoreModal, setShowMoreModal] = useState(false);
-  const [showAdminModal, setShowAdminModal] = useState(false);
-  const [adminSecret, setAdminSecret] = useState('');
-  const [adminError, setAdminError] = useState('');
+
+  // Demo secret modal (shared for admin and all demo logins)
+  const [showSecretModal, setShowSecretModal] = useState(false);
+  const [secretInput, setSecretInput] = useState('');
+  const [secretError, setSecretError] = useState('');
+  const [pendingDemo, setPendingDemo] = useState(null); // holds the demo object waiting for secret
 
   // Forgot password states
   const [showForgotModal, setShowForgotModal] = useState(false);
-  const [forgotStep, setForgotStep] = useState(1); // 1=email, 2=answer, 3=newPassword
+  const [forgotStep, setForgotStep] = useState(1);
   const [forgotEmail, setForgotEmail] = useState('');
   const [securityQuestion, setSecurityQuestion] = useState('');
   const [securityAnswer, setSecurityAnswer] = useState('');
@@ -44,58 +47,58 @@ const Login = () => {
     e.preventDefault();
     setError('');
     if (!email || !password) { setError('Please fill all fields'); return; }
-
     const result = await login(email, password);
     if (result.success) {
       toast.success(`Welcome back, ${result.user.name}!`);
-      const role = result.user.role;
-      if (role === 'customer') {
-        navigate('/');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate(result.user.role === 'customer' ? '/' : '/dashboard');
     } else {
       setError(result.message || 'Login failed');
     }
   };
 
-  // Admin login modal handler
-  const handleAdminLogin = () => {
-    if (adminSecret === 'quickbite@admin123') {
-      setEmail('admin@quickbite.com');
-      setPassword('Admin@123');
-      setShowAdminModal(false);
-      setAdminSecret('');
-      setAdminError('');
-      toast.info('🔐 Admin credentials filled. Click Sign In.');
+  // ── Secret code verification (used for ALL demo logins including admin) ──
+  const openSecretModal = (demo) => {
+    setPendingDemo(demo);
+    setSecretInput('');
+    setSecretError('');
+    setShowSecretModal(true);
+    setShowMoreModal(false); // close More modal if open
+  };
+
+  const handleSecretVerify = () => {
+    if (secretInput === 'quickbite@admin123') {
+      setEmail(pendingDemo.email);
+      setPassword(pendingDemo.password);
+      setShowSecretModal(false);
+      setSecretInput('');
+      setSecretError('');
+      setPendingDemo(null);
+      toast.info(`${pendingDemo.icon} ${pendingDemo.label} credentials filled. Click Sign In.`);
     } else {
-      setAdminError('❌ Wrong secret. Access denied.');
+      setSecretError('❌ Wrong secret code. Access denied.');
     }
   };
 
-  // Demo login handler
-  const handleDemoLogin = (demo) => {
-    setEmail(demo.email);
-    setPassword(demo.password);
-    setShowMoreModal(false);
-    toast.info(`${demo.icon} ${demo.label} credentials filled. Click Sign In.`);
-  };
-
-  // Forgot password — Step 1: Fetch security question
+  // ── Forgot password — Step 1: Fetch security question ──
   const handleForgotStep1 = async () => {
     setForgotError('');
     if (!forgotEmail.trim()) { setForgotError('Please enter your email'); return; }
     setForgotLoading(true);
     try {
-      const res = await api.post('/auth/security-question', { email: forgotEmail });
-      setSecurityQuestion(res.data?.data?.securityQuestion || '');
+      const res = await api.post('/auth/security-question', { email: forgotEmail.trim() });
+      const q = res.data?.data?.securityQuestion || res.data?.securityQuestion || '';
+      if (!q) {
+        setForgotError('No security question found for this account.');
+        return;
+      }
+      setSecurityQuestion(q);
       setForgotStep(2);
     } catch (err) {
       setForgotError(err.response?.data?.message || 'Email not found');
     } finally { setForgotLoading(false); }
   };
 
-  // Forgot password — Step 2+3: Verify answer and reset
+  // ── Forgot password — Step 2: Verify answer and reset ──
   const handleForgotReset = async () => {
     setForgotError('');
     if (!securityAnswer.trim()) { setForgotError('Please answer the security question'); return; }
@@ -103,8 +106,8 @@ const Login = () => {
     setForgotLoading(true);
     try {
       const res = await api.post('/auth/forgot-password', {
-        email: forgotEmail,
-        securityAnswer,
+        email: forgotEmail.trim(),
+        securityAnswer: securityAnswer.trim(),
         newPassword,
       });
       setForgotSuccess(res.data?.message || 'Password reset successfully!');
@@ -114,7 +117,6 @@ const Login = () => {
     } finally { setForgotLoading(false); }
   };
 
-  // Reset forgot modal
   const closeForgotModal = () => {
     setShowForgotModal(false);
     setForgotStep(1);
@@ -126,7 +128,7 @@ const Login = () => {
     setForgotSuccess('');
   };
 
-  // ── Modal overlay style ──
+  // ── Styles ──
   const overlayStyle = {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
@@ -159,7 +161,6 @@ const Login = () => {
               <FiMail className="icon" />
             </div>
           </div>
-
           <div className="input-group">
             <label>Password</label>
             <div className="auth-input-icon">
@@ -170,40 +171,25 @@ const Login = () => {
               </button>
             </div>
           </div>
-
           <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
 
         {/* ── Admin Login Button (centered) ── */}
-        <button
-          className="btn btn-ghost"
-          onClick={() => setShowAdminModal(true)}
-          style={{
-            width: '100%', marginTop: 'var(--space-md)', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', gap: 8, fontWeight: 700, fontSize: '0.875rem',
-            border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)',
-            padding: '10px', color: 'var(--text-secondary)', transition: 'all 0.2s',
-          }}
-        >
+        <button className="btn btn-ghost" onClick={() => openSecretModal({ label: 'Admin', icon: '🔐', email: 'admin@quickbite.com', password: 'Admin@123', color: '#9b59b6' })}
+          style={{ width: '100%', marginTop: 'var(--space-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 700, fontSize: '0.875rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px', color: 'var(--text-secondary)', transition: 'all 0.2s' }}>
           <FiShield /> Admin Login
         </button>
 
         {/* ── More & Forgot Password buttons ── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-sm)', gap: 'var(--space-sm)' }}>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setShowMoreModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', color: 'var(--primary)', fontWeight: 600 }}
-          >
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowMoreModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', color: 'var(--primary)', fontWeight: 600 }}>
             <FiChevronDown /> More
           </button>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setShowForgotModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}
-          >
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowForgotModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 600 }}>
             <FiHelpCircle /> Forgot Password
           </button>
         </div>
@@ -213,27 +199,27 @@ const Login = () => {
         </div>
       </div>
 
-      {/* ══════════════ Admin Login Modal ══════════════ */}
-      {showAdminModal && (
-        <div style={overlayStyle} onClick={() => setShowAdminModal(false)}>
+      {/* ══════════════ Secret Code Modal (for ALL demo logins) ══════════════ */}
+      {showSecretModal && pendingDemo && (
+        <div style={overlayStyle} onClick={() => { setShowSecretModal(false); setPendingDemo(null); }}>
           <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-            <button style={closeBtn} onClick={() => { setShowAdminModal(false); setAdminError(''); setAdminSecret(''); }}><FiX /></button>
+            <button style={closeBtn} onClick={() => { setShowSecretModal(false); setPendingDemo(null); setSecretError(''); setSecretInput(''); }}><FiX /></button>
             <div style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🔐</div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.25rem' }}>Admin Access</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: 4 }}>Enter the admin secret to continue</p>
+              <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>{pendingDemo.icon}</div>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.25rem' }}>{pendingDemo.label} Access</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: 4 }}>Enter the secret code to access demo credentials</p>
             </div>
-            {adminError && <div className="auth-error" style={{ marginBottom: 'var(--space-md)' }}>{adminError}</div>}
+            {secretError && <div className="auth-error" style={{ marginBottom: 'var(--space-md)' }}>{secretError}</div>}
             <div className="input-group" style={{ marginBottom: 'var(--space-md)' }}>
-              <label>Secret Password</label>
+              <label>Secret Code</label>
               <div className="auth-input-icon">
-                <input type="password" className="input" placeholder="Enter admin secret..." value={adminSecret} onChange={(e) => setAdminSecret(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} autoFocus />
+                <input type="password" className="input" placeholder="Enter secret code..." value={secretInput} onChange={(e) => setSecretInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSecretVerify()} autoFocus />
                 <FiShield className="icon" />
               </div>
             </div>
-            <button className="btn btn-primary" style={{ width: '100%', padding: 12, fontWeight: 700 }} onClick={handleAdminLogin}>
-              🔓 Verify & Login as Admin
+            <button className="btn btn-primary" style={{ width: '100%', padding: 12, fontWeight: 700 }} onClick={handleSecretVerify}>
+              🔓 Verify & Fill Credentials
             </button>
           </div>
         </div>
@@ -247,25 +233,17 @@ const Login = () => {
             <div style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🎭</div>
               <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.25rem' }}>Demo Accounts</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: 4 }}>Click any account to auto-fill credentials</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: 4 }}>Click any account — requires secret code to proceed</p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {DEMO_LOGINS.map((demo) => (
-                <button
-                  key={demo.email}
-                  onClick={() => handleDemoLogin(demo)}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                    padding: '16px 12px', border: `2px solid ${demo.color}22`,
-                    borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'all 0.2s',
-                    background: `${demo.color}08`, color: 'var(--text-primary)',
-                  }}
+                <button key={demo.email} onClick={() => openSecretModal(demo)}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '16px 12px', border: `2px solid ${demo.color}22`, borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'all 0.2s', background: `${demo.color}08`, color: 'var(--text-primary)' }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = demo.color; e.currentTarget.style.background = `${demo.color}15`; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = `${demo.color}22`; e.currentTarget.style.background = `${demo.color}08`; e.currentTarget.style.transform = 'none'; }}
-                >
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = `${demo.color}22`; e.currentTarget.style.background = `${demo.color}08`; e.currentTarget.style.transform = 'none'; }}>
                   <span style={{ fontSize: '1.75rem' }}>{demo.icon}</span>
                   <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{demo.label}</span>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontFamily: 'monospace', wordBreak: 'break-all', textAlign: 'center' }}>{demo.email.split('@')[0]}</span>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{demo.email.split('@')[0]}</span>
                 </button>
               ))}
             </div>
@@ -284,9 +262,8 @@ const Login = () => {
                 {forgotStep === 3 ? 'Password Reset!' : 'Reset Password'}
               </h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: 4 }}>
-                {forgotStep === 1 && 'Enter your email to get your security question'}
+                {forgotStep === 1 && 'Enter your registered email address'}
                 {forgotStep === 2 && 'Answer the question and set a new password'}
-                {forgotStep === 3 && ''}
               </p>
             </div>
 
@@ -297,14 +274,15 @@ const Login = () => {
               </div>
             )}
 
-            {/* Step 1: Email */}
+            {/* Step 1: Enter email */}
             {forgotStep === 1 && (
               <>
                 <div className="input-group" style={{ marginBottom: 'var(--space-md)' }}>
                   <label>Email Address</label>
                   <div className="auth-input-icon">
                     <input type="email" className="input" placeholder="you@example.com" value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleForgotStep1()} autoFocus />
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleForgotStep1()} autoFocus />
                     <FiMail className="icon" />
                   </div>
                 </div>
@@ -315,12 +293,12 @@ const Login = () => {
               </>
             )}
 
-            {/* Step 2: Answer + New Password */}
+            {/* Step 2: Show question, answer, new password */}
             {forgotStep === 2 && (
               <>
-                <div style={{ padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-md)', border: '1px solid var(--border-light)' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>SECURITY QUESTION</p>
-                  <p style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>{securityQuestion}</p>
+                <div style={{ padding: '14px 16px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-md)', border: '1px solid var(--border-light)' }}>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Security Question</p>
+                  <p style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--primary)', lineHeight: 1.4 }}>{securityQuestion}</p>
                 </div>
                 <div className="input-group" style={{ marginBottom: 'var(--space-md)' }}>
                   <label>Your Answer</label>
@@ -334,7 +312,8 @@ const Login = () => {
                   <label>New Password</label>
                   <div className="auth-input-icon">
                     <input type="password" className="input" placeholder="Min 6 characters" value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleForgotReset()} />
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleForgotReset()} />
                     <FiLock className="icon" />
                   </div>
                 </div>
@@ -347,8 +326,7 @@ const Login = () => {
 
             {/* Step 3: Success */}
             {forgotStep === 3 && (
-              <button className="btn btn-primary" style={{ width: '100%', padding: 12, fontWeight: 700 }}
-                onClick={closeForgotModal}>
+              <button className="btn btn-primary" style={{ width: '100%', padding: 12, fontWeight: 700 }} onClick={closeForgotModal}>
                 ✅ Back to Login
               </button>
             )}
