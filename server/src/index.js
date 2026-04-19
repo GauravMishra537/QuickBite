@@ -1,6 +1,7 @@
 const dns = require('node:dns');
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 const http = require('http');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -112,11 +113,22 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/search', searchRoutes);
 
 // ---------------------
-// 404 Handler
+// Production: Serve React Client
 // ---------------------
-app.use((req, res, next) => {
-  next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));
-});
+if (process.env.NODE_ENV === 'production') {
+  const clientBuild = path.join(__dirname, '../../client/dist');
+  app.use(express.static(clientBuild));
+
+  // All non-API routes → React app (SPA client-side routing)
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientBuild, 'index.html'));
+  });
+} else {
+  // Dev-only 404 for API routes
+  app.use((req, res, next) => {
+    next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));
+  });
+}
 
 // ---------------------
 // Global Error Handler
