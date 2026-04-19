@@ -32,7 +32,7 @@ const Footer = () => {
                             <li><Link to="/cloud-kitchens">Cloud Kitchens</Link></li>
                             <li><Link to="/grocery">Grocery</Link></li>
                             <li><Link to="/subscriptions">Subscriptions</Link></li>
-                            <li><Link to="/donations">Donate Food</Link></li>
+
                         </ul>
                     </div>
 
