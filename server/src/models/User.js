@@ -61,6 +61,14 @@ const userSchema = new mongoose.Schema(
         lastLogin: {
             type: Date,
         },
+        securityQuestion: {
+            type: String,
+            trim: true,
+        },
+        securityAnswer: {
+            type: String,
+            select: false,
+        },
     },
     {
         timestamps: true,
@@ -78,6 +86,12 @@ userSchema.pre('save', async function (next) {
 // Compare entered password with hashed password
 userSchema.methods.comparePassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Compare security answer
+userSchema.methods.compareSecurityAnswer = async function (enteredAnswer) {
+    if (!this.securityAnswer) return false;
+    return await bcrypt.compare(enteredAnswer.toLowerCase().trim(), this.securityAnswer);
 };
 
 // Remove password from JSON output

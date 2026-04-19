@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const generateToken = require('../utils/generateToken');
@@ -30,7 +31,15 @@ const register = catchAsync(async (req, res, next) => {
         phone,
         role: role || 'customer',
         ...(avatar && { avatar }),
+        ...(req.body.securityQuestion && { securityQuestion: req.body.securityQuestion }),
     });
+
+    // Hash and store security answer if provided
+    if (req.body.securityAnswer) {
+        const salt = await bcrypt.genSalt(10);
+        user.securityAnswer = await bcrypt.hash(req.body.securityAnswer.toLowerCase().trim(), salt);
+        await user.save({ validateBeforeSave: false });
+    }
 
     generateToken(user, 201, res);
 });
@@ -203,6 +212,64 @@ const deleteAddress = catchAsync(async (req, res, next) => {
     });
 });
 
+/**
+ * @desc    Forgot password via security question
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+const forgotPassword = catchAsync(async (req, res, next) => {
+    const { email, securityAnswer, newPassword } = req.body;
+
+    if (!email || !securityAnswer || !newPassword) {
+        return next(new AppError('Please provide email, security answer, and new password.', 400));
+    }
+
+    if (newPassword.length < 6) {
+        return next(new AppError('New password must be at least 6 characters.', 400));
+    }
+
+    const user = await User.findOne({ email }).select('+securityAnswer');
+    if (!user) {
+        return next(new AppError('No account found with this email.', 404));
+    }
+
+    if (!user.securityAnswer) {
+        return next(new AppError('No security question set for this account. Contact support.', 400));
+    }
+
+    const isCorrect = await user.compareSecurityAnswer(securityAnswer);
+    if (!isCorrect) {
+        return next(new AppError('Incorrect security answer.', 401));
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Password reset successfully! You can now login with your new password.',
+    });
+});
+
+/**
+ * @desc    Get security question for an email (public — no password needed)
+ * @route   POST /api/auth/security-question
+ * @access  Public
+ */
+const getSecurityQuestion = catchAsync(async (req, res, next) => {
+    const { email } = req.body;
+    if (!email) return next(new AppError('Please provide your email.', 400));
+
+    const user = await User.findOne({ email }).select('securityQuestion');
+    if (!user) return next(new AppError('No account found with this email.', 404));
+    if (!user.securityQuestion) return next(new AppError('No security question set for this account.', 400));
+
+    res.status(200).json({
+        success: true,
+        data: { securityQuestion: user.securityQuestion },
+    });
+});
+
 module.exports = {
     register,
     login,
@@ -212,4 +279,6 @@ module.exports = {
     updatePassword,
     addAddress,
     deleteAddress,
+    forgotPassword,
+    getSecurityQuestion,
 };

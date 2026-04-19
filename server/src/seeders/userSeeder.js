@@ -1,6 +1,7 @@
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 const User = require('../models/User');
 const connectDB = require('../config/db');
@@ -27,6 +28,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is your favourite food?',
+        securityAnswer: 'butter chicken',
     },
     {
         name: 'Priya Patel',
@@ -46,6 +49,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is the name of your first pet?',
+        securityAnswer: 'bruno',
     },
     {
         name: 'Rohan Gupta',
@@ -65,6 +70,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What city were you born in?',
+        securityAnswer: 'mumbai',
     },
     {
         name: 'Ananya Reddy',
@@ -84,6 +91,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is your mother\'s maiden name?',
+        securityAnswer: 'lakshmi',
     },
     {
         name: 'Vikram Singh',
@@ -103,6 +112,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is your favourite cricket team?',
+        securityAnswer: 'rajasthan royals',
     },
 
     // ---- RESTAURANT OWNERS (8 — one per restaurant) ----
@@ -124,6 +135,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What was your first car?',
+        securityAnswer: 'maruti 800',
     },
     {
         name: 'Meena Iyer',
@@ -143,6 +156,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is your favourite book?',
+        securityAnswer: 'the god of small things',
     },
     {
         name: 'Suresh Malhotra',
@@ -162,6 +177,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is your childhood nickname?',
+        securityAnswer: 'suri',
     },
     {
         name: 'Pooja Sharma',
@@ -181,6 +198,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is the name of your school?',
+        securityAnswer: 'st xaviers',
     },
     {
         name: 'Arjun Mehta',
@@ -200,9 +219,9 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is the name of your favourite restaurant?',
+        securityAnswer: 'dakshin',
     },
-
-    // Additional restaurant owners for 1:1 mapping
     {
         name: 'Deepa Mukherjee',
         email: 'deepa.mukherjee@gmail.com',
@@ -211,6 +230,8 @@ const dummyUsers = [
         role: 'restaurant',
         isVerified: true,
         addresses: [{ label: 'Restaurant', street: '78, Linking Road, Bandra West', city: 'Mumbai', state: 'Maharashtra', zipCode: '400050', country: 'India', isDefault: true }],
+        securityQuestion: 'What is your favourite movie?',
+        securityAnswer: 'ddlj',
     },
     {
         name: 'Sanjay Reddy',
@@ -220,6 +241,8 @@ const dummyUsers = [
         role: 'restaurant',
         isVerified: true,
         addresses: [{ label: 'Restaurant', street: '23, Jubilee Hills, Road No. 36', city: 'Hyderabad', state: 'Telangana', zipCode: '500033', country: 'India', isDefault: true }],
+        securityQuestion: 'What is your favourite colour?',
+        securityAnswer: 'green',
     },
     {
         name: 'Gurpreet Kaur',
@@ -229,6 +252,8 @@ const dummyUsers = [
         role: 'restaurant',
         isVerified: true,
         addresses: [{ label: 'Restaurant', street: '56, GT Road, Model Town', city: 'Ludhiana', state: 'Punjab', zipCode: '141002', country: 'India', isDefault: true }],
+        securityQuestion: 'What is the name of your hometown?',
+        securityAnswer: 'amritsar',
     },
 
     // ---- CLOUD KITCHEN OWNERS (4 — one per kitchen) ----
@@ -250,6 +275,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is your favourite dessert?',
+        securityAnswer: 'gulab jamun',
     },
     {
         name: 'Amit Joshi',
@@ -269,6 +296,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What street did you grow up on?',
+        securityAnswer: 'carter road',
     },
     {
         name: 'Ritu Sharma',
@@ -278,6 +307,8 @@ const dummyUsers = [
         role: 'cloudkitchen',
         isVerified: true,
         addresses: [{ label: 'Kitchen', street: '67, Koramangala 5th Block', city: 'Bengaluru', state: 'Karnataka', zipCode: '560095', country: 'India', isDefault: true }],
+        securityQuestion: 'What is the name of your best friend?',
+        securityAnswer: 'meera',
     },
     {
         name: 'Vishal Jain',
@@ -287,6 +318,8 @@ const dummyUsers = [
         role: 'cloudkitchen',
         isVerified: true,
         addresses: [{ label: 'Kitchen', street: '22, Powai, Hiranandani', city: 'Mumbai', state: 'Maharashtra', zipCode: '400076', country: 'India', isDefault: true }],
+        securityQuestion: 'What is your lucky number?',
+        securityAnswer: '7',
     },
 
     // ---- GROCERY SHOP OWNERS (2) ----
@@ -308,6 +341,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is your favourite festival?',
+        securityAnswer: 'pongal',
     },
     {
         name: 'Deepak Agarwal',
@@ -327,6 +362,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is the name of your first employer?',
+        securityAnswer: 'reliance',
     },
 
     // ---- NGO REPRESENTATIVES (1) ----
@@ -348,6 +385,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is your life motto?',
+        securityAnswer: 'seva hi dharm',
     },
 
     // ---- DELIVERY PARTNERS (2) ----
@@ -369,6 +408,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is your vehicle brand?',
+        securityAnswer: 'honda',
     },
     {
         name: 'Manoj Tiwari',
@@ -388,6 +429,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is the name of your favourite teacher?',
+        securityAnswer: 'sharma sir',
     },
 
     // ---- ADMIN (1) ----
@@ -409,6 +452,8 @@ const dummyUsers = [
                 isDefault: true,
             },
         ],
+        securityQuestion: 'What is the founding year of QuickBite?',
+        securityAnswer: '2024',
     },
 ];
 
@@ -424,12 +469,23 @@ const seedUsers = async () => {
         const createdUsers = await User.create(dummyUsers);
         console.log(`✅ ${createdUsers.length} dummy users seeded successfully!\n`);
 
+        // Hash security answers for each user
+        const salt = await bcrypt.genSalt(10);
+        for (const user of createdUsers) {
+            const original = dummyUsers.find(d => d.email === user.email);
+            if (original?.securityAnswer) {
+                user.securityAnswer = await bcrypt.hash(original.securityAnswer.toLowerCase().trim(), salt);
+                await user.save({ validateBeforeSave: false });
+            }
+        }
+        console.log('🔑 Security answers hashed for all users');
+
         // Print summary
         const roleCounts = {};
         createdUsers.forEach((user) => {
             roleCounts[user.role] = (roleCounts[user.role] || 0) + 1;
         });
-        console.log('📊 Users by role:');
+        console.log('\n📊 Users by role:');
         Object.entries(roleCounts).forEach(([role, count]) => {
             console.log(`   ${role}: ${count}`);
         });
